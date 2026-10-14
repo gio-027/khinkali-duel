@@ -8,41 +8,71 @@ const Rules = require('./rules.js');
 /* ---------- 1. წესები ---------- */
 (function rulesTest() {
   const names = { a: 'ა', b: 'ბ' };
-  let s = Rules.freshState(1, 'a', names);
-  s = Rules.reduceMove(s, 'bite', 0.9);
-  assert.strictEqual(s.hp.b, 4); assert.strictEqual(s.turn, 'b');
+  const seq = (...v) => { let i = 0; return () => v[i++ % v.length]; };      // მართვადი შემთხვევითობა
+  // კამათელი: a=6, b=1 -> a იგებს; ფრე თავიდან იგორავს
+  const rr = Rules.rollRound(seq(0.99, 0.0));
+  assert.deepStrictEqual([rr.a, rr.b, rr.turn], [6, 1, 'a']);
+  const tie = Rules.rollRound(seq(0.5, 0.5, 0.0, 0.99));                      // 4,4 -> 1,6
+  assert.deepStrictEqual([tie.a, tie.b, tie.turn], [1, 6, 'b']);
+
+  function ready(stake) {
+    let s = Rules.freshState(1, 'a', names, stake);
+    s = Rules.reduceMethod(s, 'a', 'hand', 'head', seq(0.99, 0.0));          // a 6, b 1
+    s = Rules.reduceMethod(s, 'b', 'fork', 'head', seq(0.99, 0.0));
+    return s;
+  }
+  let s = ready(2);
+  assert.strictEqual(s.phase, 'play'); assert.strictEqual(s.turn, 'a');
+  assert.strictEqual(Rules.reduceMove(Rules.freshState(1, 'a', names, 1), 'bite', seq(0.5)), null, 'no moves before both chose');
+
+  // მცდარი ჭამის წესები
+  const lose = (tool, spot, why) => {
+    const r = Rules.reduceMethod(Rules.freshState(1, 'a', names, 3), 'a', tool, spot, Math.random);
+    assert.strictEqual(r.over, 'b'); assert.strictEqual(r.why, why);
+    assert.deepStrictEqual(r.bal, { a: 7, b: 13 });
+  };
+  lose('forknife', null, 'knife_fork'); lose('fork', 'belly', 'fork_belly'); lose('hand', 'belly', 'hand_belly');
+  assert.strictEqual(Rules.reduceMethod(Rules.freshState(1, 'a', names, 1), 'a', 'spoon', 'head'), null);
+  assert.strictEqual(Rules.reduceMethod(Rules.freshState(1, 'a', names, 1), 'a', 'hand', 'x'), null);
+
+  // a კბენს -> ბულიონი ელოდება; დაცვა მაშინ წააგებინებს
+  let t = Rules.reduceMove(s, 'bite', seq(0.0, 0.99));                       // შემდეგი რაუნდი: b=... a 1, b 6
+  assert.strictEqual(t.hp.b, 4); assert.strictEqual(t.broth.a, 'pending');
+  assert.strictEqual(t.turn, 'b');
+  const spill = Rules.reduceMove(Object.assign({}, t, { turn: 'a' }), 'defend', seq(0.5));
+  assert.strictEqual(spill.over, 'b'); assert.strictEqual(spill.why, 'spill'); assert.deepStrictEqual(spill.bal, { a: 8, b: 12 });
+  const sip = Rules.reduceMove(Object.assign({}, t, { turn: 'a' }), 'sip', seq(0.5));
+  assert.strictEqual(sip.broth.a, 'done'); assert.strictEqual(sip.over, null);
+  assert.strictEqual(Rules.reduceMove(s, 'sip', seq(0.5)), null, 'cannot sip without a bite');
 
   // დაცვა ბლოკავს ერთ ნაკბენს
-  let d = Rules.freshState(1, 'a', names);
-  d = Rules.reduceMove(d, 'defend', 0.9);                 // a იცავს
-  d = Rules.reduceMove(d, 'bite', 0.9);                   // b კბენს, დაიბლოკა
+  let d = ready(0);
+  d = Rules.reduceMove(d, 'defend', seq(0.0, 0.99));                         // a იცავს, შემდეგ b იგებს
+  assert.strictEqual(d.turn, 'b');
+  d = Rules.reduceMove(d, 'bite', seq(0.99, 0.0));
   assert.strictEqual(d.hp.a, 5); assert.strictEqual(d.shield.a, false); assert.strictEqual(d.ev.kind, 'blocked');
-  assert.strictEqual(Rules.reduceMove(Rules.reduceMove(Rules.freshState(1, 'a', names), 'defend', 0), 'bite', 0).turn, 'a');
 
-  // ორჯერ დაცვა არ შეიძლება
-  let e = Rules.freshState(1, 'a', names);
-  e = Rules.reduceMove(e, 'defend', 0.9);
-  e = Rules.reduceMove(e, 'defend', 0.9);                 // b იცავს
-  assert.strictEqual(Rules.reduceMove(e, 'defend', 0.9), null);
-
-  // რისკიანი სვლა
-  const hit = Rules.reduceMove(Rules.freshState(1, 'a', names), 'risky', 0.2);
+  // რისკიანი სვლა: rng ჯერ რისკს წყვეტს, მერე კამათელს
+  const hit = Rules.reduceMove(ready(0), 'risky', seq(0.2, 0.0, 0.99));
   assert.strictEqual(hit.hp.b, 3);
-  const miss = Rules.reduceMove(Rules.freshState(1, 'a', names), 'risky', 0.7);
+  const miss = Rules.reduceMove(ready(0), 'risky', seq(0.7, 0.0, 0.99));
   assert.strictEqual(miss.hp.b, 5); assert.strictEqual(miss.ev.kind, 'risky_miss');
 
-  // გამარჯვება
-  let w = Rules.freshState(1, 'a', names);
+  // გამარჯვება და ფსონის გადატანა
+  let w = ready(2);
   w.hp.b = 1;
-  w = Rules.reduceMove(w, 'bite', 0.9);
-  assert.strictEqual(w.over, 'a'); assert.strictEqual(w.hp.b, 0);
-  assert.strictEqual(Rules.reduceMove(w, 'bite', 0.9), null);
-
-  // ჰპ ნულს ქვემოთ არ ეცემა
-  let z = Rules.freshState(1, 'a', names);
-  z.hp.b = 1;
-  z = Rules.reduceMove(z, 'risky', 0.1);
-  assert.strictEqual(z.hp.b, 0);
+  w = Rules.reduceMove(w, 'bite', seq(0.5));
+  assert.strictEqual(w.over, 'a'); assert.strictEqual(w.why, 'bites');
+  assert.deepStrictEqual(w.bal, { a: 12, b: 8 });
+  assert.strictEqual(Rules.reduceMove(w, 'bite', seq(0.5)), null);
+  // ხელახლა: ბალანსი გადადის; ნულიანი ბალანსი ახლიდან იწყება
+  const rm = Rules.rematch(w, 'b');
+  assert.deepStrictEqual(rm.bal, { a: 12, b: 8 }); assert.strictEqual(rm.phase, 'choose'); assert.strictEqual(rm.game, 2);
+  const broke = Rules.rematch(Object.assign({}, w, { bal: { a: 20, b: 0 } }), 'a');
+  assert.deepStrictEqual(broke.bal, { a: 10, b: 10 });
+  // ფსონი ბალანსს ვერ აჭარბებს, ზღვარი აქვს
+  assert.strictEqual(Rules.freshState(1, 'a', names, 999).stake, 10);
+  assert.strictEqual(Rules.freshState(1, 'a', names, 5, { a: 3, b: 10 }).stake, 3);
   console.log('ok  rules');
 })();
 
@@ -109,7 +139,7 @@ async function main() {
 
     // ოთახის შექმნა
     const A = await client();
-    A.send({ t: 'create', name: 'გიორგი' });
+    A.send({ t: 'create', name: 'გიორგი', stake: 2 });
     const created = await A.type('created');
     assert.strictEqual(created.code.length, 4); assert.strictEqual(created.role, 'a');
 
@@ -125,6 +155,7 @@ async function main() {
     let sb = (await B.type('state')).state;
     assert.deepStrictEqual(sa, sb);
     assert.strictEqual(sa.n, 0); assert.strictEqual(sa.names.a, 'გიორგი'); assert.strictEqual(sa.names.b, 'ნინო');
+    assert.strictEqual(sa.phase, 'choose'); assert.strictEqual(sa.stake, 2);
 
     // მესამე მოთამაშე
     const C = await client();
@@ -134,22 +165,31 @@ async function main() {
     console.log('ok  create/join');
 
     const by = { a: A, b: B };
+    // ჯერ ორივე ირჩევს, როგორ შეჭამს; მერე კამათელი წყვეტს, ვინ იწყებს
+    A.send({ t: 'move', act: 'bite' });                       // არჩევამდე სვლა არ შეიძლება
+    assert.strictEqual((await A.type('state')).state.phase, 'choose');
+    A.send({ t: 'method', tool: 'hand', spot: 'head' });
+    await A.type('state'); await B.type('state');
+    B.send({ t: 'method', tool: 'fork', spot: 'head' });
+    sa = (await A.type('state')).state; sb = (await B.type('state')).state;
+    assert.strictEqual(sa.phase, 'play'); assert.ok(sa.dice && sa.dice.a !== sa.dice.b);
+    assert.strictEqual(sa.turn, sa.dice.a > sa.dice.b ? 'a' : 'b');
     // არასწორი რიგი: სვლა უგულებელყოფილია, სერვერი მდგომარეობას უბრუნებს
     const wrong = sa.turn === 'a' ? 'b' : 'a';
     by[wrong].send({ t: 'move', act: 'bite' });
     const back = (await by[wrong].type('state')).state;
-    assert.strictEqual(back.n, 0);
+    assert.strictEqual(back.n, sa.n);
 
     // სწორი სვლა
     const first = sa.turn, second = first === 'a' ? 'b' : 'a';
     by[first].send({ t: 'move', act: 'bite' });
     sa = (await A.type('state')).state; sb = (await B.type('state')).state;
     assert.deepStrictEqual(sa, sb);
-    assert.strictEqual(sa.n, 1); assert.strictEqual(sa.hp[second], 4); assert.strictEqual(sa.turn, second);
+    assert.strictEqual(sa.hp[second], 4); assert.strictEqual(sa.broth[first], 'pending');
 
     // უცნობი სვლა
-    by[second].send({ t: 'move', act: 'cheat' });
-    assert.strictEqual((await by[second].type('state')).state.n, 1);
+    by[sa.turn].send({ t: 'move', act: 'cheat' });
+    assert.strictEqual((await by[sa.turn].type('state')).state.n, sa.n);
     console.log('ok  moves');
 
     // გათიშვა და დაბრუნება
@@ -162,15 +202,15 @@ async function main() {
     B3.send({ t: 'rejoin', code: created.code, role: 'b', token: joined.token });
     assert.strictEqual((await B3.type('rejoined')).role, 'b');
     const resumed = (await B3.type('state')).state;
-    assert.strictEqual(resumed.n, 1);
+    assert.strictEqual(resumed.n, sa.n);
     assert.strictEqual((await A.type('peer')).online, true);
     by.b = B3;
     console.log('ok  reconnect');
 
     // თამაში ბოლომდე
     let cur = resumed;
-    for (let i = 0; i < 30 && !cur.over; i++) {
-      by[cur.turn].send({ t: 'move', act: 'bite' });
+    for (let i = 0; i < 60 && !cur.over; i++) {
+      by[cur.turn].send({ t: 'move', act: cur.broth[cur.turn] === 'pending' ? 'sip' : 'bite' });
       cur = (await A.type('state')).state;
       await B3.type('state');
     }
@@ -180,7 +220,7 @@ async function main() {
     // ხელახლა
     A.send({ t: 'again' });
     sa = (await A.type('state')).state; await B3.type('state');
-    assert.strictEqual(sa.game, 2); assert.strictEqual(sa.n, 0); assert.strictEqual(sa.hp.a, 5);
+    assert.strictEqual(sa.game, 2); assert.strictEqual(sa.n, 0); assert.strictEqual(sa.hp.a, 5); assert.strictEqual(sa.phase, 'choose'); assert.strictEqual(sa.bal[cur.over], 12);
     A.send({ t: 'again' });                                // მიმდინარე თამაშზე არაფერი ხდება
     await sleep(150);
     assert.strictEqual(A.msgs.filter((m) => m.t === 'state').length, 0);

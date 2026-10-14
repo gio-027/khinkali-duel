@@ -117,11 +117,32 @@ function other(room, role) {
   return room.p[role === 'a' ? 'b' : 'a'];
 }
 
+// არჩევის ფაზაში მოწინააღმდეგის არჩევანი არ ჩანს; ჩანს მხოლოდ, ვინ დაადასტურა
+function stateFor(s) {
+  if (s.phase !== 'choose') return s;
+  return Object.assign({}, s, { method: { a: null, b: null } });
+}
+
+function sendState(ws, room) {
+  send(ws, { t: 'state', state: stateFor(room.state) });
+}
+
 function broadcastState(room) {
   for (const role of ['a', 'b']) {
     const pl = room.p[role];
-    if (pl && pl.ws) send(pl.ws, { t: 'state', state: room.state });
+    if (pl && pl.ws) sendState(pl.ws, room);
   }
+}
+
+// დაცული შემთხვევითი რიცხვი [0,1) კამათლისთვის და რისკიანი სვლისთვის
+function rng() {
+  return crypto.randomInt(1000000) / 1000000;
+}
+
+function cleanStake(v) {
+  const n = Math.floor(Number(v));
+  if (!isFinite(n) || n < 1) return 1;
+  return Math.min(n, Rules.MAX_STAKE);
 }
 
 function firstTurn() {
@@ -159,11 +180,12 @@ function onCreate(ws, m) {
     code,
     born: Date.now(),
     state: null,
+    stake: cleanStake(m.stake),
     p: { a: { ws, token, name: cleanName(m.name), off: 0 }, b: null }
   };
   rooms.set(code, room);
   ws.ctx = { code, role: 'a' };
-  send(ws, { t: 'created', code, token, role: 'a' });
+  send(ws, { t: 'created', code, token, role: 'a', stake: room.stake });
 }
 
 function onJoin(ws, m) {
@@ -175,8 +197,8 @@ function onJoin(ws, m) {
   const token = newToken();
   room.p.b = { ws, token, name: cleanName(m.name), off: 0 };
   ws.ctx = { code, role: 'b' };
-  send(ws, { t: 'joined', code, token, role: 'b' });
-  room.state = Rules.freshState(1, firstTurn(), { a: room.p.a.name, b: room.p.b.name });
+  send(ws, { t: 'joined', code, token, role: 'b', stake: room.stake });
+  room.state = Rules.freshState(1, firstTurn(), { a: room.p.a.name, b: room.p.b.name }, room.stake);
   send(ws, { t: 'peer', online: !!room.p.a.ws });
   broadcastState(room);
 }
@@ -195,7 +217,7 @@ function onRejoin(ws, m) {
   pl.off = 0;
   ws.ctx = { code, role };
   send(ws, { t: 'rejoined', code, role });
-  if (room.state) send(ws, { t: 'state', state: room.state });
+  if (room.state) sendState(ws, room);
   const op = other(room, role);
   send(ws, { t: 'peer', online: !!(op && op.ws) });
   if (op && op.ws) send(op.ws, { t: 'peer', online: true });
@@ -207,11 +229,22 @@ function onMove(ws, m) {
   if (!room || !room.state) return;
   const s = room.state;
   const act = m.act;
-  const valid = act === 'bite' || act === 'defend' || act === 'risky';
-  if (!valid || s.over || s.turn !== c.role) return send(ws, { t: 'state', state: s });
-  const roll = crypto.randomInt(1000000) / 1000000;
-  const next = Rules.reduceMove(s, act, roll);
-  if (!next) return send(ws, { t: 'state', state: s });
+  const valid = act === 'bite' || act === 'defend' || act === 'risky' || act === 'sip';
+  if (!valid || s.over || s.phase !== 'play' || s.turn !== c.role) return sendState(ws, room);
+  const next = Rules.reduceMove(s, act, rng);
+  if (!next) return sendState(ws, room);
+  room.state = next;
+  broadcastState(room);
+}
+
+function onMethod(ws, m) {
+  const c = ws.ctx;
+  const room = c && rooms.get(c.code);
+  if (!room || !room.state) return;
+  const tool = typeof m.tool === 'string' ? m.tool.slice(0, 12) : '';
+  const spot = typeof m.spot === 'string' ? m.spot.slice(0, 12) : null;
+  const next = Rules.reduceMethod(room.state, c.role, tool, spot, rng);
+  if (!next) return sendState(ws, room);
   room.state = next;
   broadcastState(room);
 }
@@ -221,7 +254,7 @@ function onAgain(ws) {
   const room = c && rooms.get(c.code);
   if (!room || !room.state || !room.state.over) return;
   const s = room.state;
-  room.state = Rules.freshState(s.game + 1, firstTurn(), s.names);
+  room.state = Rules.rematch(s, firstTurn());
   broadcastState(room);
 }
 
@@ -243,6 +276,7 @@ function handle(ws, m) {
     case 'create': return onCreate(ws, m);
     case 'join': return onJoin(ws, m);
     case 'rejoin': return onRejoin(ws, m);
+    case 'method': return onMethod(ws, m);
     case 'move': return onMove(ws, m);
     case 'again': return onAgain(ws);
     case 'leave': return leaveCurrent(ws);

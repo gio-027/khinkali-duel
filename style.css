@@ -104,6 +104,10 @@ details b{color:var(--fg)}
 .chip{background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 12px;font-size:13px;font-weight:600;color:var(--muted)}
 .side{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
 .side.turn{border-color:var(--accent)}
+.kh{border-radius:14px;padding:2px;background:
+  repeating-linear-gradient(0deg,rgba(60,95,140,.6) 0 5px,rgba(0,0,0,0) 5px 10px),
+  repeating-linear-gradient(90deg,rgba(214,202,176,.55) 0 5px,rgba(0,0,0,0) 5px 10px),
+  #7A8798}
 .kh svg{width:100%;height:auto;display:block}
 .who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
 .who strong{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
@@ -131,9 +135,8 @@ details b{color:var(--fg)}
 .result .btns .btn[hidden]+.btn{grid-column:1 / -1}
 
 /* ხინკალი */
-.dough{fill:var(--dough);stroke:var(--dough-edge);stroke-width:2.5;stroke-linejoin:round}
+.dough{stroke:var(--dough-edge);stroke-width:2.2;stroke-linejoin:round}
 .pleats path{fill:none;stroke:var(--dough-edge);stroke-width:1.8;opacity:.7;stroke-linecap:round}
-.plate{fill:var(--plate)}
 .crumb{fill:var(--dough);opacity:.8}
 .ring{fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:8 7;animation:march 6s linear infinite}
 @keyframes march{to{stroke-dashoffset:-60}}
@@ -141,3 +144,15 @@ details b{color:var(--fg)}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px) rotate(-3deg)}40%{transform:translateX(6px) rotate(3deg)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 @media (prefers-reduced-motion: reduce){.ring,.dots i,.hit .kh{animation:none}}
 @media (max-width:360px){h1{font-size:28px}.hero{grid-template-columns:92px minmax(0,1fr)}.side{grid-template-columns:92px minmax(0,1fr)}.codebig{font-size:44px}}
+
+/* არჩევანი, კამათელი, ბულიონი, ფსონი */
+select{background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:48px;padding:0 14px;font-size:16px;width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip.stake{color:var(--accent);border-color:var(--accent)}
+.dice{min-height:1.5em;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.choose .tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.choose .spots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.choose .spotq{font-weight:600;margin:4px 0 8px}
+.act.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.actions .sip{grid-column:1 / -1}
+.brothhint{border:1px solid var(--accent);border-radius:12px;padding:10px 14px;text-align:center;font-weight:600;color:var(--accent)}

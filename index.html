@@ -42,7 +42,15 @@
 
     <div class="card" id="createCard">
       <h2>ახალი ოთახი</h2>
-      <p class="lede">შექმენი ოთახი და მეგობარს ბმული გაუგზავნე.</p>
+      <p class="lede">შექმენი ოთახი და მეგობარს ბმული გაუგზავნე. თითოეულს აქვს 10 ვირტუალური ხინკალი, გამარჯვებული ფსონს იღებს. ფულის ღირებულება არ აქვს.</p>
+      <label for="stake">ფსონი (ხინკალი)</label>
+      <select id="stake">
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+      </select>
       <button type="button" id="createBtn" class="btn primary">ოთახის შექმნა</button>
     </div>
 
@@ -59,7 +67,11 @@
     <details>
       <summary>თამაშის წესები</summary>
       <ul>
-        <li>თითო ხინკალს 5 ნაჭერი აქვს, სვლები მორიგეობით კეთდება.</li>
+        <li>თითოეულ მოთამაშეს 10 ვირტუალური ხინკალი აქვს. ოთახის შემქმნელი ირჩევს ფსონს, გამარჯვებული მას იღებს. ეს მხოლოდ თამაშია, ფულის ღირებულება არ აქვს.</li>
+        <li><b>როგორ შეჭამ:</b> თამაშამდე უნდა აირჩიო. ხელით და თავით დაჭერა ან ჩანგალი თავში ჩარჭობა გამოდის. დანა-ჩანგალი, ჩანგალი მუცელში ან ხელით მუცლიდან დაჭერა მაშინვე წაგებაა.</li>
+        <li><b>კამათელი:</b> ყოველ რაუნდზე ორივე აგორებს. ვისაც მეტი მოუვა, ის აკეთებს სვლას. ფრეზე თავიდან.</li>
+        <li>თითო ხინკალს 5 ნაჭერი აქვს.</li>
+        <li><b>ბულიონი:</b> პირველი ნაკბენის შემდეგ შენი შემდეგი სვლა უნდა იყოს ბულიონის დალევა, თორემ დაიღვრება და წააგებ.</li>
         <li><b>ჩაკბიჩე:</b> მოწინააღმდეგის ხინკალს აკლდება 1 ნაჭერი.</li>
         <li><b>დაიცავი:</b> მოწინააღმდეგის შემდეგი ნაკბენი დაიბლოკება.</li>
         <li><b>შეჭამე ფარულად:</b> 50% შანსია, რომ 2 ნაჭერი დააკლდეს, და 50%, რომ არაფერი მოხდეს.</li>
@@ -79,13 +91,14 @@
       <button type="button" id="shareBtn" class="btn primary">ბმულის გაგზავნა</button>
       <button type="button" id="copyBtn" class="btn secondary">ბმულის კოპირება</button>
     </div>
+    <p class="chip" id="waitStake" hidden></p>
     <p class="lede" id="waitGuest" hidden>უერთდები ოთახს...</p>
     <button type="button" id="cancelBtn" class="btn ghost">გაუქმება</button>
   </section>
 
   <section id="s-game" class="screen" hidden>
     <div class="gbar">
-      <span class="chip" id="roomChip"></span>
+      <span class="chips"><span class="chip" id="roomChip"></span><span class="chip stake" id="stakeChip" hidden></span></span>
       <div class="right">
         <button type="button" class="btn ghost icon soundbtn" aria-label="ხმა" aria-pressed="true">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -105,6 +118,7 @@
 
     <div class="status">
       <div class="turntxt" id="turnTxt"></div>
+      <div class="dice" id="diceTxt" aria-live="polite"></div>
       <div class="event" id="eventTxt" aria-live="polite"></div>
     </div>
 
@@ -117,7 +131,26 @@
       </div>
     </div>
 
+    <div class="card choose" id="choose" hidden>
+      <h2>როგორ შეჭამ ხინკალს?</h2>
+      <p class="lede">არჩევანი დამალულია, მოწინააღმდეგე ვერ ხედავს. ზოგი არჩევანი მაშინვე წაგებაა.</p>
+      <div class="tools">
+        <button type="button" class="act" id="toolHand"><b>🖐 ხელით</b></button>
+        <button type="button" class="act" id="toolFork"><b>🍴 ჩანგლით</b></button>
+        <button type="button" class="act" id="toolKnife"><b>🍴🔪 დანა-ჩანგლით</b></button>
+      </div>
+      <div id="spotRow" hidden>
+        <p class="spotq" id="spotQ"></p>
+        <div class="spots">
+          <button type="button" class="act primary" id="spotHead"><b>თავი</b><small>ზედა კვანძი</small></button>
+          <button type="button" class="act" id="spotBelly"><b>მუცელი</b><small>ხინკლის გვერდი</small></button>
+        </div>
+      </div>
+    </div>
+
+    <p class="brothhint" id="brothHint" hidden>ბულიონი იღვრება! დალიე ახლა, სხვა სვლაზე წააგებ.</p>
     <div class="actions" id="actions">
+      <button type="button" class="act primary sip" id="actSip" hidden><b>დალიე ბულიონი</b><small>სხვა სვლაზე წააგებ</small></button>
       <button type="button" class="act primary" id="actBite"><b>ჩაკბიჩე</b><small>−1 ნაჭერი</small></button>
       <button type="button" class="act" id="actDefend"><b>დაიცავი</b><small>ბლოკავს შემდეგ ნაკბენს</small></button>
       <button type="button" class="act risky" id="actRisky"><b>შეჭამე ფარულად</b><small>50% შანსი, −2 ნაჭერი</small></button>

@@ -1,0 +1,15 @@
+{
+  "name": "ხინკლის დუელი",
+  "short_name": "ხინკალი",
+  "description": "ორი მოთამაშის ონლაინ თამაში",
+  "lang": "ka",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#170F18",
+  "theme_color": "#170F18",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

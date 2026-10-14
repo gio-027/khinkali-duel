@@ -3,7 +3,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const assert = require('assert');
-const Rules = require('./public/rules.js');
+const Rules = require('./rules.js');
 
 /* ---------- 1. წესები ---------- */
 (function rulesTest() {

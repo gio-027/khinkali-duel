@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ხინკლის დუელი</title>
+<meta name="description" content="ორი მოთამაშის ონლაინ თამაში: ვისი ხინკალიც პირველი გაქრება, ის წააგებს.">
+<meta name="theme-color" content="#170F18" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F2F4" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ხინკალი">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700&family=Noto+Serif+Georgian:wght@700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+
+  <section id="s-lobby" class="screen">
+    <div class="toprow">
+      <p class="eyebrow">სატესტო ვერსია</p>
+      <button type="button" class="btn ghost icon soundbtn" aria-label="ხმა" aria-pressed="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="hero">
+      <div class="kh" id="heroKh"></div>
+      <h1>ხინკლის დუელი</h1>
+    </div>
+    <p class="lede">ორი მოთამაშე, თითო ხინკალი. ვისი ხინკალიც პირველი გაქრება, ის წააგებს.</p>
+
+    <div class="card" id="nameCard">
+      <label for="name">შენი სახელი</label>
+      <input id="name" maxlength="14" placeholder="მაგ. გიორგი" autocomplete="off">
+    </div>
+
+    <div class="invite" id="invite" hidden>მეგობარმა გიწვია ოთახში <b id="inviteCode"></b>. ჩაწერე სახელი და დააჭირე „შეერთებას“.</div>
+
+    <div class="card" id="createCard">
+      <h2>ახალი ოთახი</h2>
+      <p class="lede">შექმენი ოთახი და მეგობარს ბმული გაუგზავნე.</p>
+      <button type="button" id="createBtn" class="btn primary">ოთახის შექმნა</button>
+    </div>
+
+    <div class="card" id="joinCard">
+      <label for="code">ოთახის კოდი</label>
+      <div class="row">
+        <input id="code" maxlength="8" placeholder="კოდი" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button type="button" id="joinBtn" class="btn secondary">შეერთება</button>
+      </div>
+    </div>
+
+    <button type="button" id="botBtn" class="btn secondary">ვარჯიში კომპიუტერთან</button>
+
+    <details>
+      <summary>თამაშის წესები</summary>
+      <ul>
+        <li>თითო ხინკალს 5 ნაჭერი აქვს, სვლები მორიგეობით კეთდება.</li>
+        <li><b>ჩაკბიჩე:</b> მოწინააღმდეგის ხინკალს აკლდება 1 ნაჭერი.</li>
+        <li><b>დაიცავი:</b> მოწინააღმდეგის შემდეგი ნაკბენი დაიბლოკება.</li>
+        <li><b>შეჭამე ფარულად:</b> 50% შანსია, რომ 2 ნაჭერი დააკლდეს, და 50%, რომ არაფერი მოხდეს.</li>
+        <li>ვისი ხინკალიც მთლიანად გაქრება, ის წააგებს.</li>
+      </ul>
+    </details>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </section>
+
+  <section id="s-wait" class="screen wait" hidden>
+    <h2 id="waitTitle"></h2>
+    <div class="codebig" id="codeBig" aria-label="ოთახის კოდი"></div>
+    <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="stack" id="hostBox">
+      <p class="lede">გაუგზავნე მეგობარს ეს ბმული. მან უნდა გახსნას და დააჭიროს „შეერთებას“.</p>
+      <p class="linkbox" id="shareLink"></p>
+      <button type="button" id="shareBtn" class="btn primary">ბმულის გაგზავნა</button>
+      <button type="button" id="copyBtn" class="btn secondary">ბმულის კოპირება</button>
+    </div>
+    <p class="lede" id="waitGuest" hidden>უერთდები ოთახს...</p>
+    <button type="button" id="cancelBtn" class="btn ghost">გაუქმება</button>
+  </section>
+
+  <section id="s-game" class="screen" hidden>
+    <div class="gbar">
+      <span class="chip" id="roomChip"></span>
+      <div class="right">
+        <button type="button" class="btn ghost icon soundbtn" aria-label="ხმა" aria-pressed="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" id="leaveBtn" class="btn ghost">გასვლა</button>
+      </div>
+    </div>
+
+    <div class="side" id="pOpp">
+      <div class="kh" id="khOpp"></div>
+      <div>
+        <div class="who"><strong id="nameOpp"></strong><span class="tag shield" id="shieldOpp" hidden>დაცულია</span></div>
+        <div class="pips" id="pipsOpp"></div>
+        <div class="count" id="countOpp"></div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="turntxt" id="turnTxt"></div>
+      <div class="event" id="eventTxt" aria-live="polite"></div>
+    </div>
+
+    <div class="side" id="pMe">
+      <div class="kh" id="khMe"></div>
+      <div>
+        <div class="who"><strong id="nameMe"></strong><span class="tag">შენ</span><span class="tag shield" id="shieldMe" hidden>დაცულია</span></div>
+        <div class="pips" id="pipsMe"></div>
+        <div class="count" id="countMe"></div>
+      </div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button type="button" class="act primary" id="actBite"><b>ჩაკბიჩე</b><small>−1 ნაჭერი</small></button>
+      <button type="button" class="act" id="actDefend"><b>დაიცავი</b><small>ბლოკავს შემდეგ ნაკბენს</small></button>
+      <button type="button" class="act risky" id="actRisky"><b>შეჭამე ფარულად</b><small>50% შანსი, −2 ნაჭერი</small></button>
+    </div>
+
+    <div class="card result" id="result" hidden>
+      <h2 id="resTitle"></h2>
+      <p class="lede" id="resSub"></p>
+      <div class="btns">
+        <button type="button" id="againBtn" class="btn primary">კიდევ ერთხელ</button>
+        <button type="button" id="homeBtn" class="btn secondary">მთავარი გვერდი</button>
+      </div>
+    </div>
+
+    <div class="banner" id="banner" hidden></div>
+  </section>
+
+</main>
+<script src="rules.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

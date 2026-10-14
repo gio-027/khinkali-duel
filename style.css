@@ -1,0 +1,143 @@
+/* განლაგება: ვიწრო ერთი სვეტი, ღვინისფერ-ბნელი სუფრა. ლობი, მოლოდინის ეკრანი და დუელი ერთმანეთს ენაცვლება. */
+:root{
+  --display:"Noto Serif Georgian","Sylfaen",Georgia,serif;
+  --body:"Noto Sans Georgian","Sylfaen",system-ui,sans-serif;
+  --bg:#170F18;
+  --surface:#241925;
+  --surface-2:#2E2030;
+  --line:#43324A;
+  --fg:#F4EEE6;
+  --muted:#B3A4B2;
+  --accent:#E3A93B;
+  --on-accent:#1B1206;
+  --bad:#E4574D;
+  --dough:#F2E8D5;
+  --dough-edge:#C9B48C;
+  --plate:#3A2B3D;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F6F2F4;--surface:#FFFFFF;--surface-2:#EFE8EC;--line:#D9CCD3;--fg:#2B1B2A;--muted:#6C5A6A;
+    --accent:#A15F00;--on-accent:#FFFFFF;--bad:#B3261E;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F6F2F4;--surface:#FFFFFF;--surface-2:#EFE8EC;--line:#D9CCD3;--fg:#2B1B2A;--muted:#6C5A6A;
+  --accent:#A15F00;--on-accent:#FFFFFF;--bad:#B3261E;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-top:max(12px,env(safe-area-inset-top,0px));
+  padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+button,input{font:inherit;color:inherit}
+button{touch-action:manipulation}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.screen{display:flex;flex-direction:column;gap:14px}
+h1,h2,p{margin:0}
+h1{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.15;text-wrap:balance}
+h2{font-family:var(--display);font-weight:700;font-size:19px;line-height:1.3}
+.eyebrow{color:var(--accent);font-weight:600;font-size:13px;letter-spacing:.04em}
+.lede{color:var(--muted)}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hero{display:grid;grid-template-columns:116px minmax(0,1fr);gap:14px;align-items:center}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+label{font-weight:600;font-size:14px}
+input{background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:48px;padding:0 14px;font-size:16px;width:100%;min-width:0}
+input::placeholder{color:var(--muted)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+#code{text-transform:uppercase;letter-spacing:.25em;text-align:center;font-weight:700}
+.btn{min-height:48px;padding:0 18px;border-radius:12px;border:1px solid transparent;font-weight:700;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+.btn.primary{background:var(--accent);color:var(--on-accent)}
+.btn.secondary{background:var(--surface-2);border-color:var(--line);color:var(--fg)}
+.btn.ghost{background:transparent;color:var(--muted);min-height:40px;font-weight:600}
+.btn.icon{padding:0 10px;min-width:44px}
+.btn:disabled,.act:disabled{opacity:.45;cursor:not-allowed}
+.soundbtn[aria-pressed="true"] .x{display:none}
+.soundbtn[aria-pressed="false"] .waves{display:none}
+details{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 16px}
+summary{cursor:pointer;font-weight:600}
+details ul{margin:10px 0 2px;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+details b{color:var(--fg)}
+.toast{min-height:1.5em;color:var(--muted);font-size:13.5px;text-align:center}
+.invite{border:1px solid var(--accent);border-radius:12px;padding:10px 14px;font-size:14.5px;text-align:center}
+
+/* ლობის თანმიმდევრობა; მოწვევისას შეერთების ბარათი ამოდის ზევით */
+#s-lobby > .toprow{order:1}
+#s-lobby > .hero{order:2}
+#s-lobby > .lede{order:3}
+#nameCard{order:4}
+#invite{order:5}
+#createCard{order:6}
+#joinCard{order:7}
+#botBtn{order:8}
+#s-lobby > details{order:9}
+#s-lobby > .toast{order:10}
+#s-lobby.invited #joinCard{order:6}
+#s-lobby.invited #createCard{order:7}
+
+/* მოლოდინის ეკრანი */
+.wait{align-items:center;text-align:center;justify-content:center;gap:16px;min-height:70vh}
+.stack{display:flex;flex-direction:column;gap:12px;width:100%;align-items:center}
+.stack .btn{width:100%}
+.codebig{font-family:var(--display);font-weight:800;font-size:56px;letter-spacing:.18em;padding-left:.18em;line-height:1.1;user-select:all}
+.linkbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;overflow-wrap:anywhere;user-select:all;width:100%;color:var(--muted)}
+.dots{display:inline-flex;gap:6px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+/* დუელი */
+.gbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gbar .right{display:flex;align-items:center;gap:4px}
+.chip{background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 12px;font-size:13px;font-weight:600;color:var(--muted)}
+.side{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.side.turn{border-color:var(--accent)}
+.kh svg{width:100%;height:auto;display:block}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.who strong{font-family:var(--display);font-size:18px;overflow-wrap:anywhere}
+.tag{font-size:12px;font-weight:700;border-radius:999px;padding:1px 10px;border:1px solid var(--line);color:var(--muted)}
+.tag.shield{border-color:var(--accent);color:var(--accent)}
+.pips{display:flex;gap:6px;margin-top:8px}
+.pip{width:15px;height:15px;border-radius:50%;background:var(--dough);border:2px solid var(--dough-edge)}
+.pip.off{background:transparent;border-style:dashed;opacity:.45}
+.count{margin-top:4px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.status{text-align:center;display:flex;flex-direction:column;gap:2px;padding:2px 0}
+.turntxt{font-family:var(--display);font-weight:700;font-size:22px;color:var(--muted);min-height:1.4em}
+.turntxt.mine{color:var(--accent)}
+.event{min-height:1.6em;color:var(--fg);font-size:14.5px}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.act{display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center;min-height:84px;min-width:0;padding:10px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.act b{font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+.act small{font-size:12px;color:var(--muted);line-height:1.3}
+.act.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.act.primary small{color:inherit;opacity:.85}
+.act.risky{border-style:dashed;border-color:var(--accent)}
+.banner{border:1px solid var(--bad);border-radius:12px;padding:10px 14px;font-size:14px;text-align:center}
+.result{text-align:center;align-items:center}
+.result h2{font-size:26px}
+.result .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+.result .btns .btn[hidden]+.btn{grid-column:1 / -1}
+
+/* ხინკალი */
+.dough{fill:var(--dough);stroke:var(--dough-edge);stroke-width:2.5;stroke-linejoin:round}
+.pleats path{fill:none;stroke:var(--dough-edge);stroke-width:1.8;opacity:.7;stroke-linecap:round}
+.plate{fill:var(--plate)}
+.crumb{fill:var(--dough);opacity:.8}
+.ring{fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:8 7;animation:march 6s linear infinite}
+@keyframes march{to{stroke-dashoffset:-60}}
+.hit .kh{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px) rotate(-3deg)}40%{transform:translateX(6px) rotate(3deg)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion: reduce){.ring,.dots i,.hit .kh{animation:none}}
+@media (max-width:360px){h1{font-size:28px}.hero{grid-template-columns:92px minmax(0,1fr)}.side{grid-template-columns:92px minmax(0,1fr)}.codebig{font-size:44px}}

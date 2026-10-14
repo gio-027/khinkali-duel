@@ -5,10 +5,18 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
-const Rules = require('./public/rules.js');
+
+// მხოლოდ ეს ფაილები ეგზავნება ბრაუზერს; server.js და package.json არასოდეს
+const STATIC_FILES = ['index.html', 'app.js', 'rules.js', 'style.css', 'manifest.webmanifest', 'icon.svg'];
+const missing = STATIC_FILES.filter((n) => !fs.existsSync(path.join(__dirname, n)));
+if (missing.length) {
+  console.error('ფაილები აკლია / Missing files: ' + missing.join(', '));
+  console.error('ატვირთე არქივის ყველა ფაილი ერთ ადგილას (საცავის მთავარ გვერდზე). / Upload ALL files from the zip to the repository root.');
+  process.exit(1);
+}
+const Rules = require('./rules.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const MAX_ROOMS = 300;
 const OFFLINE_GRACE_MS = 3 * 60 * 1000;       // ორივე მოთამაშე გათიშულია ამდენ ხანს -> ოთახი იხურება
@@ -39,13 +47,11 @@ const CSP = [
   "frame-ancestors 'none'"
 ].join('; ');
 
-/* ---------- სტატიკური ფაილები (public საქაღალდე იტვირთება გაშვებისას) ---------- */
+/* ---------- სტატიკური ფაილები (იტვირთება გაშვებისას) ---------- */
 const files = new Map();
-for (const name of fs.readdirSync(PUBLIC_DIR)) {
-  const full = path.join(PUBLIC_DIR, name);
-  if (!fs.statSync(full).isFile()) continue;
+for (const name of STATIC_FILES) {
   files.set('/' + name, {
-    body: fs.readFileSync(full),
+    body: fs.readFileSync(path.join(__dirname, name)),
     type: TYPES[path.extname(name)] || 'application/octet-stream'
   });
 }

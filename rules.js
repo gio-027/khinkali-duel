@@ -10,9 +10,10 @@
   var MAX = 5;            // ნაჭერი ერთ ხინკალში
   var START_BAL = 10;     // ვირტუალური ხინკალი თითო მოთამაშეს (ფულის ღირებულება არ აქვს)
   var MAX_STAKE = 10;
+  var WIN_MULT = 2;       // გამარჯვებული იღებს ფსონის ორმაგს, წაგებული კარგავს ფსონს
 
-  /* სწორი ადგილი ხინკლის დასაჭერად ან ჩასაჭედად არის ხინკლის თავი (ზედა კვანძი).
-     მუცელი არასწორია. თუ პირიქით გინდა, შეცვალე 'head' → 'belly'. */
+  /* ჩანგალი უნდა ჩაარჭო ხინკლის თავში (ზედა კვანძი); მუცელში ჩარჭობა წაგებაა.
+     ხელით ჭამისას ადგილს მნიშვნელობა არ აქვს. */
   var GOOD_SPOT = 'head';
   var TOOLS = ['hand', 'fork', 'forknife'];
   var SPOTS = ['head', 'belly'];
@@ -20,20 +21,13 @@
   function opp(r) { return r === 'a' ? 'b' : 'a'; }
   function die(rng) { return 1 + Math.floor(rng() * 6); }
 
-  /* ორივე აგორებს კამათელს; ვისაც მეტი მოუვა, ის მოქმედებს. ფრეზე თავიდან. */
-  function rollRound(rng) {
-    var a, b, i = 0;
-    do { a = die(rng); b = die(rng); i++; } while (a === b && i < 20);
-    if (a === b) b = (a === 6) ? 5 : a + 1;
-    return { a: a, b: b, turn: a > b ? 'a' : 'b' };
-  }
-
   /* null: არასწორი შეყვანა; {ok:true}: სწორად ჭამს; {ok:false, why}: მაშინვე წააგებს */
   function judgeMethod(tool, spot) {
     if (TOOLS.indexOf(tool) < 0) return null;
     if (tool === 'forknife') return { ok: false, why: 'knife_fork' };
+    if (tool === 'hand') return { ok: true, why: null };           // ხელით ხინკალს ნებისმიერ ადგილას დაიჭერ
     if (SPOTS.indexOf(spot) < 0) return null;
-    if (spot !== GOOD_SPOT) return { ok: false, why: tool === 'fork' ? 'fork_belly' : 'hand_belly' };
+    if (spot !== GOOD_SPOT) return { ok: false, why: 'fork_belly' };
     return { ok: true, why: null };
   }
 
@@ -54,10 +48,13 @@
       broth: { a: 'none', b: 'none' },       // 'none' | 'pending' | 'done'
       picked: { a: false, b: false },
       method: { a: null, b: null },
-      dice: null,                            // {a, b}: ბოლო რაუნდის კამათლები
+      step: 'roll',                          // 'roll' (კამათელი) | 'act' (სვლა)
+      roller: first,                         // ვინ უნდა გააგოროს ახლა
+      tie: false,
+      dice: { a: null, b: null },            // ამ რაუნდის კამათლები
       stake: st,
       bal: b,
-      turn: first,                           // თამაშის დაწყების შემდეგ კამათელი წყვეტს
+      turn: first,                           // ვინ აკეთებს სვლას (კამათლის შემდეგ)
       over: null,                            // გამარჯვებული
       why: null,                             // 'bites' | 'knife_fork' | 'fork_belly' | 'hand_belly' | 'spill'
       names: names,
@@ -73,7 +70,8 @@
       broth: { a: s.broth.a, b: s.broth.b },
       picked: { a: s.picked.a, b: s.picked.b },
       method: { a: s.method.a, b: s.method.b },
-      dice: s.dice ? { a: s.dice.a, b: s.dice.b } : null,
+      step: s.step, roller: s.roller, tie: s.tie,
+      dice: { a: s.dice.a, b: s.dice.b },
       stake: s.stake,
       bal: { a: s.bal.a, b: s.bal.b },
       turn: s.turn, over: s.over, why: s.why, names: s.names, ev: s.ev
@@ -86,7 +84,7 @@
     next.over = winner;
     next.why = why;
     if (next.stake > 0) {
-      next.bal[winner] += next.stake;
+      next.bal[winner] += next.stake * WIN_MULT;
       next.bal[opp(winner)] -= next.stake;
     }
   }
@@ -106,10 +104,11 @@
     }
     next.picked[who] = true;
     if (next.picked.a && next.picked.b) {
-      var r = rollRound(rng || Math.random);
       next.phase = 'play';
-      next.dice = { a: r.a, b: r.b };
-      next.turn = r.turn;
+      next.step = 'roll';
+      next.roller = s.turn;
+      next.dice = { a: null, b: null };
+      next.tie = false;
       next.ev = { who: who, kind: 'ready' };
     } else {
       next.ev = { who: who, kind: 'locked' };
@@ -117,10 +116,36 @@
     return next;
   }
 
+  /* კამათელს რიგრიგობით აგორებენ: ჯერ roller, მერე მეორე. მეტი ქულის მქონე იღებს სვლას, ფრეზე თავიდან. */
+  function reduceRoll(s, who, rng) {
+    if (s.over || s.phase !== 'play' || s.step !== 'roll' || s.roller !== who) return null;
+    rng = rng || Math.random;
+    var other = opp(who);
+    var next = copy(s);
+    next.n = s.n + 1;
+    if (s.tie) next.dice = { a: null, b: null };
+    var v = die(rng);
+    next.dice[who] = v;
+    next.tie = false;
+    if (next.dice[other] === null) {
+      next.roller = other;
+      next.ev = { who: who, kind: 'roll', value: v };
+    } else if (next.dice.a === next.dice.b) {
+      next.tie = true;
+      next.roller = other;                       // ფრეზე ახლა ის იწყებს, ვინც მეორე აგორებდა
+      next.ev = { who: who, kind: 'roll_tie', value: v };
+    } else {
+      next.step = 'act';
+      next.turn = next.dice.a > next.dice.b ? 'a' : 'b';
+      next.ev = { who: who, kind: 'roll_done', value: v };
+    }
+    return next;
+  }
+
   /* act: 'bite' | 'defend' | 'risky' | 'sip'. მოქმედებს ის, ვინც კამათელი მოიგო (s.turn).
      აბრუნებს ახალ მდგომარეობას ან null-ს, თუ სვლა დაუშვებელია. */
   function reduceMove(s, act, rng) {
-    if (s.over || s.phase !== 'play') return null;
+    if (s.over || s.phase !== 'play' || s.step !== 'act') return null;
     if (act !== 'bite' && act !== 'defend' && act !== 'risky' && act !== 'sip') return null;
     rng = rng || Math.random;
     var who = s.turn;
@@ -165,9 +190,10 @@
       finish(next, who, 'bites');
       next.turn = who;
     } else {
-      var r = rollRound(rng);
-      next.dice = { a: r.a, b: r.b };
-      next.turn = r.turn;
+      next.step = 'roll';
+      next.roller = other;                       // ახალ რაუნდს ის იწყებს, ვინც ახლა არ მოქმედებდა
+      next.dice = { a: null, b: null };
+      next.tie = false;
     }
     return next;
   }
@@ -181,6 +207,6 @@
   return {
     MAX: MAX, START_BAL: START_BAL, MAX_STAKE: MAX_STAKE, GOOD_SPOT: GOOD_SPOT,
     freshState: freshState, reduceMethod: reduceMethod, reduceMove: reduceMove,
-    judgeMethod: judgeMethod, rollRound: rollRound, rematch: rematch
+    judgeMethod: judgeMethod, reduceRoll: reduceRoll, rematch: rematch, WIN_MULT: WIN_MULT
   };
 });

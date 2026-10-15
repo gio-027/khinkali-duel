@@ -237,6 +237,16 @@ function onMove(ws, m) {
   broadcastState(room);
 }
 
+function onRoll(ws) {
+  const c = ws.ctx;
+  const room = c && rooms.get(c.code);
+  if (!room || !room.state) return;
+  const next = Rules.reduceRoll(room.state, c.role, rng);
+  if (!next) return sendState(ws, room);
+  room.state = next;
+  broadcastState(room);
+}
+
 function onMethod(ws, m) {
   const c = ws.ctx;
   const room = c && rooms.get(c.code);
@@ -277,6 +287,7 @@ function handle(ws, m) {
     case 'join': return onJoin(ws, m);
     case 'rejoin': return onRejoin(ws, m);
     case 'method': return onMethod(ws, m);
+    case 'roll': return onRoll(ws);
     case 'move': return onMove(ws, m);
     case 'again': return onAgain(ws);
     case 'leave': return leaveCurrent(ws);

@@ -16,6 +16,7 @@ var ws = null, wsOpen = false, queue = [], retry = 0, retryTimer = null, intenti
 var oppOnline = true, closed = false, connLost = false, pending = false;
 var prevHp = { a: MAX, b: MAX };
 var timers = {}, toastTimer = null;
+var holdStage = false, heldDice = null, anim = { a: false, b: false }, faces = { a: null, b: null };
 var chosenTool = null;      // 'hand' | 'fork' (არჩევის ეკრანზე)
 var roomStake = 0;
 var FACES = '\u2680\u2681\u2682\u2683\u2684\u2685';
@@ -178,6 +179,7 @@ function eventSound(s) {
   else if (k === 'sip') Sound.play('sip');
   else if (k === 'spill' || k === 'wrong_method') Sound.play('spill');
   else if (k === 'ready') Sound.play('start');
+  else if (k === 'roll' || k === 'roll_tie' || k === 'roll_done') Sound.play('dice');
   else if (k === 'locked') Sound.play('click');
   if (!mine && (k === 'bite' || k === 'risky_hit')) {
     try { if (navigator.vibrate) navigator.vibrate(k === 'bite' ? 60 : [60, 40, 60]); } catch (e) {}
@@ -185,59 +187,80 @@ function eventSound(s) {
   clearTimeout(timers.after); clearTimeout(timers.after2);
   if (s.over) {
     timers.after = setTimeout(function () { Sound.play(s.over === role ? 'win' : 'lose'); }, 650);
-  } else if (s.phase === 'play' && s.dice) {
-    timers.after = setTimeout(function () {
-      Sound.play('dice');
-      timers.after2 = setTimeout(function () { if (s.turn === role) Sound.play('turn'); }, 600);
-    }, 500);
+  } else if (k === 'roll_done' && s.turn === role) {
+    timers.after = setTimeout(function () { Sound.play('turn'); }, 900);
   }
 }
 
 /* ---------- ხინკლის ნახატი ---------- */
-var BITES = [[152, 92, 16], [168, 140, 16], [130, 166, 16], [34, 138, 16], [70, 166, 16]];
-var LEAVES = [[20, 160, -35], [30, 172, 15], [178, 158, 215], [168, 174, 165], [52, 186, 80]];
-function plateSVG() {
-  var leaf = '<path d="M0 0 C-7 -5 -9 -13 -3 -17 C0 -13 3 -13 4 -17 C10 -13 8 -5 0 0Z"/>', out = '', i;
-  out += '<ellipse cx="100" cy="162" rx="96" ry="33" fill="#B8481B"/>' +
-    '<ellipse cx="100" cy="159" rx="86" ry="28" fill="#E26E2C"/>' +
-    '<ellipse cx="100" cy="154" rx="70" ry="19" fill="#F08B45" opacity=".55"/>';
-  out += '<g fill="#4E8A3A">';
-  for (i = 0; i < LEAVES.length; i++) {
-    out += '<g transform="translate(' + LEAVES[i][0] + ' ' + LEAVES[i][1] + ') rotate(' + LEAVES[i][2] + ')">' + leaf + '</g>';
-  }
-  out += '</g>';
-  return out;
+// ქართული ფერები: ღვინისფერი, ოქროსფერი, სპილოსძვლისფერი
+var BITES = [[156, 128, 18], [164, 152, 17], [128, 170, 18], [40, 140, 18], [72, 168, 18]];
+function plateSVG(uid) {
+  // ქსოვილი ქართული ორნამენტით (ბორჯღალის მსგავსი ხვეული ბადე), ზემოდან თეფში
+  var tile = '<pattern id="o-' + uid + '" width="26" height="26" patternUnits="userSpaceOnUse">' +
+    '<rect width="26" height="26" fill="#7E1625"/>' +
+    '<path d="M13 3 L23 13 L13 23 L3 13 Z" fill="none" stroke="#D9A441" stroke-width="1.3"/>' +
+    '<path d="M13 8 C17 8 18 12 14 13 C10 14 9 18 13 18 M8 13 C8 9 12 8 13 12 C14 16 18 17 18 13" fill="none" stroke="#E9C46A" stroke-width="1.1" stroke-linecap="round"/>' +
+    '<circle cx="0" cy="0" r="1.6" fill="#D9A441"/><circle cx="26" cy="0" r="1.6" fill="#D9A441"/><circle cx="0" cy="26" r="1.6" fill="#D9A441"/><circle cx="26" cy="26" r="1.6" fill="#D9A441"/>' +
+    '</pattern>';
+  return '<defs>' + tile + '<clipPath id="k-' + uid + '"><rect x="0" y="0" width="200" height="200" rx="22"/></clipPath></defs>' +
+    '<g clip-path="url(#k-' + uid + ')"><rect width="200" height="200" fill="url(#o-' + uid + ')"/>' +
+    '<rect x="5" y="5" width="190" height="190" rx="18" fill="none" stroke="#E9C46A" stroke-width="3"/>' +
+    '<rect x="11" y="11" width="178" height="178" rx="13" fill="none" stroke="#D9A441" stroke-width="1" stroke-dasharray="3 4"/></g>' +
+    '<ellipse cx="100" cy="166" rx="92" ry="28" fill="#5E0F1B" opacity=".55"/>' +
+    '<ellipse cx="100" cy="160" rx="90" ry="29" fill="#F4ECDD" stroke="#D9A441" stroke-width="2.5"/>' +
+    '<ellipse cx="100" cy="160" rx="76" ry="22" fill="#EADFC8" stroke="#A3192B" stroke-width="2"/>' +
+    '<ellipse cx="100" cy="158" rx="62" ry="16" fill="#F7F0E1"/>';
 }
 function khinkaliSVG(hp, shield, uid) {
   if (hp <= 0) {
-    return '<svg viewBox="0 0 200 200" role="img" aria-label="ხინკალი გაქრა">' + plateSVG() +
-      '<circle class="crumb" cx="84" cy="156" r="3"/><circle class="crumb" cx="112" cy="160" r="2.5"/><circle class="crumb" cx="126" cy="154" r="2"/></svg>';
+    return '<svg viewBox="0 0 200 200" role="img" aria-label="ხინკალი გაქრა">' + plateSVG(uid) +
+      '<circle class="crumb" cx="84" cy="158" r="3.5"/><circle class="crumb" cx="112" cy="162" r="3"/><circle class="crumb" cx="128" cy="156" r="2.4"/></svg>';
   }
   var n = Math.max(0, Math.min(5, MAX - hp)), holes = '', pleats = '', i, k;
   for (i = 0; i < n; i++) { var b = BITES[i]; holes += '<circle cx="' + b[0] + '" cy="' + b[1] + '" r="' + b[2] + '" fill="#000"/>'; }
-  for (k = -6; k <= 6; k++) {
-    pleats += '<path d="M100 72 Q ' + (100 + k * 15) + ' 104 ' + (100 + k * 11.5) + ' ' + (170 - k * k * 0.2) + '"/>';
+  // დაბალი და ბუთქუნა სხეული; ნაოჭები კვანძიდან ვრცელდება
+  var body = 'M24 150 C20 118 54 96 100 94 C146 96 180 118 176 150 C174 170 142 176 100 176 C58 176 26 170 24 150 Z';
+  for (k = -7; k <= 7; k++) {
+    pleats += '<path d="M100 102 Q ' + (100 + k * 14) + ' 120 ' + (100 + k * 11) + ' ' + (176 - k * k * 0.12) + '"/>';
   }
-  var body = 'M30 138 C24 104 62 70 100 64 C138 70 176 104 170 138 C166 160 134 166 100 166 C66 166 34 160 30 138 Z';
-  var knob = 'M91 73 C87 58 92 47 100 44 C108 47 113 58 109 73 Z';
+  // დიდი კვანძი (კუდი)
+  var knob = 'M83 104 C76 88 84 70 100 66 C116 70 124 88 117 104 Z';
   return '<svg viewBox="0 0 200 200" role="img" aria-label="ხინკალი, ' + hp + ' ნაჭერი">' +
     '<defs>' +
     '<radialGradient id="d-' + uid + '" cx="40%" cy="30%" r="80%"><stop offset="0" stop-color="#FBF3E2"/><stop offset=".6" stop-color="#F0E2C6"/><stop offset="1" stop-color="#D8C197"/></radialGradient>' +
     '<clipPath id="c-' + uid + '"><path d="' + body + '"/></clipPath>' +
     '<mask id="m-' + uid + '" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200"><rect width="200" height="200" fill="#fff"/>' + holes + '</mask>' +
     '</defs>' +
-    plateSVG() +
-    '<ellipse cx="100" cy="168" rx="66" ry="7" fill="#000" opacity=".18"/>' +
+    plateSVG(uid) +
+    '<ellipse cx="100" cy="177" rx="70" ry="6" fill="#000" opacity=".2"/>' +
     '<g mask="url(#m-' + uid + ')">' +
     '<path class="dough" d="' + body + '" fill="url(#d-' + uid + ')"/>' +
     '<g class="pleats" clip-path="url(#c-' + uid + ')">' + pleats + '</g>' +
-    '<ellipse cx="100" cy="74" rx="17" ry="6" fill="none" stroke="#C9B48C" stroke-width="1.6" opacity=".8"/>' +
+    '<ellipse cx="100" cy="104" rx="22" ry="7" fill="none" stroke="#C9B48C" stroke-width="1.6" opacity=".85"/>' +
     '</g>' +
     '<path class="dough" d="' + knob + '" fill="url(#d-' + uid + ')"/>' +
-    '<path d="M94 66 Q100 62 106 66 M95 58 Q100 54 105 58" fill="none" stroke="#C9B48C" stroke-width="1.5" stroke-linecap="round"/>' +
-    '<ellipse cx="80" cy="92" rx="14" ry="7" fill="#fff" opacity=".28" transform="rotate(-25 80 92)"/>' +
-    (shield ? '<ellipse class="ring" cx="100" cy="112" rx="94" ry="84"/>' : '') +
+    '<path d="M90 78 Q100 72 110 78 M87 90 Q100 84 113 90 M91 99 Q100 95 109 99" fill="none" stroke="#C9B48C" stroke-width="1.6" stroke-linecap="round"/>' +
+    '<ellipse cx="78" cy="118" rx="16" ry="7" fill="#fff" opacity=".3" transform="rotate(-20 78 118)"/>' +
+    (shield ? '<ellipse class="ring" cx="100" cy="122" rx="94" ry="68"/>' : '') +
     '</svg>';
+}
+
+/* კამათლის ნახატი */
+var PIPS = {
+  1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[28, 28], [50, 50], [72, 72]],
+  4: [[28, 28], [72, 28], [28, 72], [72, 72]], 5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+  6: [[28, 26], [72, 26], [28, 50], [72, 50], [28, 74], [72, 74]]
+};
+function dieSVG(n) {
+  var out = '<svg viewBox="0 0 100 100" role="img" aria-label="' + (n ? 'კამათელი ' + n : 'კამათელი ჯერ არ გაგორებულა') + '">' +
+    '<rect x="5" y="5" width="90" height="90" rx="18" fill="#FBF3E2" stroke="#8E1B2A" stroke-width="5"/>';
+  if (n && PIPS[n]) {
+    PIPS[n].forEach(function (p) { out += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="8.5" fill="' + (n === 1 ? '#A3192B' : '#3B1018') + '"/>'; });
+  } else {
+    out += '<text x="50" y="66" text-anchor="middle" font-size="46" font-weight="700" fill="#8E1B2A" opacity=".5">?</text>';
+  }
+  return out + '</svg>';
 }
 
 function eventText(ev) {
@@ -251,7 +274,10 @@ function eventText(ev) {
     case 'blocked': return mine ? 'შენი ნაკბენი დაიბლოკა!' : 'დაიცავი! ნაკბენი დაიბლოკა.';
     case 'sip': return mine ? 'ბულიონი დალიე, არაფერი დაიღვარა.' : 'მოწინააღმდეგემ ბულიონი დალია.';
     case 'locked': return mine ? 'არჩევანი მიღებულია.' : 'მოწინააღმდეგემ ხინკლის აღების წესი აირჩია.';
-    case 'ready': return 'ორივე სწორად შეექცევა ხინკალს. კამათელი გაგორდა!';
+    case 'ready': return 'ორივემ ხინკალი სწორად აიღო. გააგორეთ კამათელი!';
+    case 'roll': return mine ? 'შენ გააგორე: ' + ev.value + '.' : 'მოწინააღმდეგემ გააგორა: ' + ev.value + '.';
+    case 'roll_tie': return 'ფრე! კამათელი თავიდან უნდა გაგორდეს.';
+    case 'roll_done': return '';
   }
   return '';
 }
@@ -266,17 +292,16 @@ function resultSub(s, me) {
     default: t = won ? 'მოწინააღმდეგის ხინკალი გაქრა.' : 'შენი ხინკალი გაქრა.';
   }
   if (s.stake > 0) {
-    t += (won ? ' +' : ' −') + s.stake + ' ხინკალი.';
+    t += (won ? ' +' + (s.stake * R.WIN_MULT) : ' −' + s.stake) + ' ხინკალი.';
     if (s.bal.a < 1 || s.bal.b < 1) t += ' ბალანსი ნულია, ახალ თამაშზე ორივეს ისევ ' + R.START_BAL + ' ხინკალი ექნება.';
   }
   return t;
 }
 
 function diceText(s, me) {
-  if (!s.dice || s.phase === 'choose') return '';
+  if (s.phase !== 'play' || s.step !== 'act' || s.over || s.dice.a === null || s.dice.b === null) return '';
   var op = (me === 'a') ? 'b' : 'a';
-  return '🎲 შენ ' + FACES.charAt(s.dice[me] - 1) + ' ' + s.dice[me] + '  ·  მოწინააღმდეგე ' + FACES.charAt(s.dice[op] - 1) + ' ' + s.dice[op] +
-    (s.over ? '' : (s.turn === me ? ' — რაუნდს შენ იგებ' : ' — რაუნდს მოწინააღმდეგე იგებს'));
+  return '🎲 შენ ' + s.dice[me] + '  ·  მოწინააღმდეგე ' + s.dice[op] + (s.turn === me ? ' — რაუნდს შენ იგებ' : ' — რაუნდს მოწინააღმდეგე იგებს');
 }
 
 /* ---------- ეკრანის განახლება ---------- */
@@ -294,7 +319,7 @@ function fillPanel(k, r) {
   }
   pips.replaceChildren.apply(pips, kids);
   var panel = $('p' + k);
-  panel.classList.toggle('turn', s.phase === 'play' && s.turn === r && !s.over && !closed);
+  panel.classList.toggle('turn', s.phase === 'play' && s.step === 'act' && s.turn === r && !s.over && !closed);
   if (hp < prevHp[r]) {
     panel.classList.remove('hit'); void panel.offsetWidth; panel.classList.add('hit');
     setTimeout(function () { panel.classList.remove('hit'); }, 500);
@@ -312,6 +337,44 @@ function updateBanner() {
   b.hidden = !text;
 }
 
+function animateDie(x) {
+  var count = 0;
+  anim[x] = true;
+  clearTimeout(timers['die' + x]);
+  (function step() {
+    faces[x] = 1 + Math.floor(Math.random() * 6);
+    renderStage();
+    if (++count < 9) timers['die' + x] = setTimeout(step, 90);
+    else { anim[x] = false; renderStage(); }
+  })();
+}
+
+/* კამათლის ეკრანი: დანარჩენი ყველაფერი ფონზე გადადის, წინა პლანზე ორი კამათელია */
+function renderStage() {
+  var s = state, me = role, op = (me === 'a') ? 'b' : 'a';
+  var on = !!s && s.phase === 'play' && !s.over && !closed && (s.step === 'roll' || holdStage);
+  $('diceStage').hidden = !on;
+  $('appMain').classList.toggle('staged', on);
+  if (!on) return;
+  var d = (holdStage && heldDice) ? heldDice : s.dice;
+  function val(x) { return anim[x] ? faces[x] : d[x]; }
+  $('dieMe').innerHTML = dieSVG(val(me));
+  $('dieOpp').innerHTML = dieSVG(val(op));
+  $('dieMe').classList.toggle('rolling', anim[me]);
+  $('dieOpp').classList.toggle('rolling', anim[op]);
+  $('dieMeName').textContent = s.names[me] + ' (შენ)';
+  $('dieOppName').textContent = s.names[op];
+  var mineRoll = s.step === 'roll' && s.roller === me;
+  var busy = anim.a || anim.b;
+  $('rollBtn').hidden = s.step !== 'roll';
+  $('rollBtn').disabled = !(mineRoll && !pending && !connLost && !busy);
+  var m;
+  if (s.step !== 'roll') m = (s.turn === me) ? 'შენ იგებ რაუნდს. შენი სვლაა!' : 'მოწინააღმდეგე იგებს რაუნდს.';
+  else if (mineRoll) m = (s.tie ? 'ფრე! ' : '') + 'შენი რიგია, გააგორე კამათელი!';
+  else m = (s.tie ? 'ფრე! ' : '') + 'მოწინააღმდეგე აგორებს...';
+  $('diceMsg').textContent = m;
+}
+
 function render() {
   var s = state;
   if (!s) return;
@@ -319,11 +382,12 @@ function render() {
   fillPanel('Me', me); fillPanel('Opp', op);
   var choosing = s.phase === 'choose' && !s.over && !closed;
   var playing = s.phase === 'play' && !s.over && !closed;
-  var mineTurn = playing && s.turn === me;
+  var mineTurn = playing && s.step === 'act' && s.turn === me;
   var t = $('turnTxt');
   if (closed) t.textContent = '';
   else if (s.over) t.textContent = 'თამაში დასრულდა';
   else if (choosing) t.textContent = s.picked[me] ? 'ველოდებით მოწინააღმდეგეს...' : 'როგორ შეჭამ ხინკალს?';
+  else if (playing && s.step === 'roll') t.textContent = (s.roller === me) ? 'გააგორე კამათელი' : 'მოწინააღმდეგე აგორებს...';
   else t.textContent = mineTurn ? 'შენი სვლაა' : 'მოწინააღმდეგე ფიქრობს...';
   t.classList.toggle('mine', mineTurn || (choosing && !s.picked[me]));
   $('eventTxt').textContent = eventText(s.ev);
@@ -335,10 +399,9 @@ function render() {
   if (s.picked[me]) chosenTool = null;
   $('choose').hidden = !(choosing && !s.picked[me]);
   $('spotRow').hidden = !chosenTool;
-  $('spotQ').textContent = chosenTool === 'fork' ? 'ჩანგალს სად ჩაარჭობ?' : 'ხინკალს სად დაიჭერ?';
+  $('spotQ').textContent = 'ჩანგალს სად ჩაარჭობ?';
   $('toolHand').disabled = !net; $('toolFork').disabled = !net; $('toolKnife').disabled = !net;
   $('spotHead').disabled = !net; $('spotBelly').disabled = !net;
-  $('toolHand').classList.toggle('sel', chosenTool === 'hand');
   $('toolFork').classList.toggle('sel', chosenTool === 'fork');
 
   var can = mineTurn && net;
@@ -362,6 +425,7 @@ function render() {
     $('againBtn').hidden = false;
   }
   updateBanner();
+  renderStage();
 }
 
 /* ---------- მდგომარეობის ცვლილება ---------- */
@@ -372,7 +436,7 @@ function setState(next) {
   if (!prev || prev.game !== next.game) {
     prevHp = { a: next.hp.a, b: next.hp.b };
     closed = false;
-    chosenTool = null;
+    chosenTool = null; holdStage = false; clearTimeout(timers.hold);
     clearTimeout(timers.after); clearTimeout(timers.after2);
     show('s-game');
     $('roomChip').textContent = (mode === 'online') ? ('ოთახი ' + code) : 'ვარჯიში';
@@ -381,7 +445,17 @@ function setState(next) {
     maybeBotTurn();
     return;
   }
-  if (next.n !== prev.n) eventSound(next);
+  if (next.n !== prev.n) {
+    eventSound(next);
+    if (next.ev && /^roll/.test(next.ev.kind)) animateDie(next.ev.who);
+  }
+  if (next.step === 'roll' || next.phase !== 'play') { holdStage = false; clearTimeout(timers.hold); }
+  if (prev.step === 'roll' && next.step === 'act' && next.phase === 'play' && next.n !== prev.n) {
+    holdStage = true;
+    heldDice = { a: next.dice.a, b: next.dice.b };
+    clearTimeout(timers.hold);
+    timers.hold = setTimeout(function () { holdStage = false; render(); }, 1900);
+  }
   render();
   maybeBotTurn();
 }
@@ -391,15 +465,21 @@ function maybeBotTurn() {
   clearTimeout(timers.bot);
   if (mode !== 'bot' || !state || state.over) return;
   if (state.phase === 'choose' && !state.picked.b) timers.bot = setTimeout(botPick, 800 + Math.random() * 600);
-  else if (state.phase === 'play' && state.turn === 'b') timers.bot = setTimeout(botMove, 1400 + Math.random() * 600);
+  else if (state.phase === 'play' && state.step === 'roll' && state.roller === 'b') timers.bot = setTimeout(botRoll, 1100 + Math.random() * 500);
+  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 2500 + Math.random() * 600);
 }
 function botPick() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'choose' || state.picked.b) return;
   var nx = R.reduceMethod(state, 'b', 'hand', 'head', Math.random);
   if (nx) setState(nx);
 }
+function botRoll() {
+  if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'roll' || state.roller !== 'b') return;
+  var nx = R.reduceRoll(state, 'b', Math.random);
+  if (nx) setState(nx);
+}
 function botMove() {
-  if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.turn !== 'b') return;
+  if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'act' || state.turn !== 'b') return;
   var r = Math.random(), canDef = !state.shield.b, act;
   if (state.broth.b === 'pending') act = 'sip';
   else if (canDef && state.hp.b <= 2 && r < 0.45) act = 'defend';
@@ -472,7 +552,8 @@ function scheduleRetry() {
 function resetNet() {
   intentional = true;
   clearTimeout(retryTimer);
-  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2);
+  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB);
+  holdStage = false; heldDice = null; anim = { a: false, b: false };
   var old = ws;
   ws = null; wsOpen = false; queue = []; retry = 0;
   if (old) { try { old.close(); } catch (e) {} }
@@ -547,7 +628,7 @@ function onServer(m) {
 /* ---------- მოქმედებები ---------- */
 function act(a) {
   var s = state;
-  if (!s || s.over || s.phase !== 'play' || closed || pending || s.turn !== role) return;
+  if (!s || s.over || s.phase !== 'play' || s.step !== 'act' || closed || pending || s.turn !== role) return;
   if (a === 'defend' && s.shield[role]) return;
   if (a === 'sip' && s.broth[role] !== 'pending') return;
   if (mode === 'bot') {
@@ -558,6 +639,20 @@ function act(a) {
   if (mode === 'online' && ws && wsOpen) {
     pending = true; render();
     rawSend({ t: 'move', act: a });
+    setTimeout(function () { if (pending) { pending = false; render(); } }, 4000);
+  }
+}
+function rollDice() {
+  var s = state;
+  if (!s || s.over || s.phase !== 'play' || s.step !== 'roll' || s.roller !== role || closed || pending || anim.a || anim.b) return;
+  if (mode === 'bot') {
+    var nx = R.reduceRoll(s, role, Math.random);
+    if (nx) setState(nx);
+    return;
+  }
+  if (mode === 'online' && ws && wsOpen) {
+    pending = true; render();
+    rawSend({ t: 'roll' });
     setTimeout(function () { if (pending) { pending = false; render(); } }, 4000);
   }
 }
@@ -627,7 +722,8 @@ $('actBite').onclick = function () { act('bite'); };
 $('actDefend').onclick = function () { act('defend'); };
 $('actRisky').onclick = function () { act('risky'); };
 $('actSip').onclick = function () { act('sip'); };
-$('toolHand').onclick = function () { chosenTool = 'hand'; render(); };
+$('toolHand').onclick = function () { chooseMethod('hand', null); };
+$('rollBtn').onclick = rollDice;
 $('toolFork').onclick = function () { chosenTool = 'fork'; render(); };
 $('toolKnife').onclick = function () { chooseMethod('forknife', null); };
 $('spotHead').onclick = function () { if (chosenTool) chooseMethod(chosenTool, 'head'); };

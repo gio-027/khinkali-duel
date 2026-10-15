@@ -18,14 +18,14 @@
 }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
-    --bg:#F6F2F4;--surface:#FFFFFF;--surface-2:#EFE8EC;--line:#D9CCD3;--fg:#2B1B2A;--muted:#6C5A6A;
-    --accent:#A15F00;--on-accent:#FFFFFF;--bad:#B3261E;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
+    --bg:#FAF4EA;--surface:#FFFFFF;--surface-2:#F4EADB;--line:#E0CDB5;--fg:#2A1015;--muted:#6E5558;
+    --accent:#A3192B;--on-accent:#FFFFFF;--bad:#8A1420;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
     color-scheme:light;
   }
 }
 :root[data-theme="light"]{
-  --bg:#F6F2F4;--surface:#FFFFFF;--surface-2:#EFE8EC;--line:#D9CCD3;--fg:#2B1B2A;--muted:#6C5A6A;
-  --accent:#A15F00;--on-accent:#FFFFFF;--bad:#B3261E;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
+  --bg:#FAF4EA;--surface:#FFFFFF;--surface-2:#F4EADB;--line:#E0CDB5;--fg:#2A1015;--muted:#6E5558;
+  --accent:#A3192B;--on-accent:#FFFFFF;--bad:#8A1420;--dough:#F2E8D5;--dough-edge:#B09560;--plate:#E3D8DD;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -156,3 +156,20 @@ select{background:var(--bg);border:1px solid var(--line);border-radius:12px;min-
 .act.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
 .actions .sip{grid-column:1 / -1}
 .brothhint{border:1px solid var(--accent);border-radius:12px;padding:10px 14px;text-align:center;font-weight:600;color:var(--accent)}
+
+/* ქართული ორნამენტი */
+.ornament{height:14px;border-radius:6px;border:1px solid #D9A441;background:#7E1625 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M14 1 L21 7 L14 13 L7 7 Z' fill='none' stroke='%23E9C46A' stroke-width='1.3'/%3E%3Ccircle cx='14' cy='7' r='1.8' fill='%23E9C46A'/%3E%3Ccircle cx='0' cy='7' r='1.4' fill='%23D9A441'/%3E%3Ccircle cx='28' cy='7' r='1.4' fill='%23D9A441'/%3E%3C/svg%3E") repeat-x center}
+
+/* კამათლის ეკრანი: ყველაფერი დანარჩენი ფონზეა */
+.staged{filter:blur(3px);opacity:.4;pointer-events:none;user-select:none}
+.stage{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(40,8,14,.7)}
+.stagecard{background:var(--surface);border:2px solid var(--accent);border-radius:20px;padding:20px 18px;width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.dicecol{display:flex;flex-direction:column;align-items:center;gap:6px}
+.diename{font-weight:600;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.die{width:96px;height:96px}
+.die svg{width:100%;height:100%;display:block}
+.die.rolling{animation:tumble .45s linear infinite}
+@keyframes tumble{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(90deg) translateY(-8px)}50%{transform:rotate(180deg) translateY(0)}75%{transform:rotate(270deg) translateY(-8px)}100%{transform:rotate(360deg) translateY(0)}}
+.dicemsg{min-height:2.8em;font-weight:600}
+.rollbtn{width:100%}
+@media (prefers-reduced-motion: reduce){.die.rolling{animation:none}}

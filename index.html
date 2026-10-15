@@ -6,7 +6,7 @@
 <title>ხინკლის დუელი</title>
 <meta name="description" content="ორი მოთამაშის ონლაინ თამაში: ვისი ხინკალიც პირველი გაქრება, ის წააგებს.">
 <meta name="theme-color" content="#170F18" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#F6F2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#FAF4EA" media="(prefers-color-scheme: light)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ხინკალი">
@@ -18,7 +18,8 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="app">
+<main class="app" id="appMain">
+  <div class="ornament" aria-hidden="true"></div>
 
   <section id="s-lobby" class="screen">
     <div class="toprow">
@@ -42,7 +43,7 @@
 
     <div class="card" id="createCard">
       <h2>ახალი ოთახი</h2>
-      <p class="lede">შექმენი ოთახი და მეგობარს ბმული გაუგზავნე. თითოეულს აქვს 10 ვირტუალური ხინკალი, გამარჯვებული ფსონს იღებს. ფულის ღირებულება არ აქვს.</p>
+      <p class="lede">შექმენი ოთახი და მეგობარს ბმული გაუგზავნე. თითოეულს აქვს 10 ვირტუალური ხინკალი, გამარჯვებული ფსონის ორმაგს იღებს. ფულის ღირებულება არ აქვს.</p>
       <label for="stake">ფსონი (ხინკალი)</label>
       <select id="stake">
         <option value="1" selected>1</option>
@@ -68,14 +69,14 @@
       <summary>თამაშის წესები</summary>
       <ul>
         <li>თითოეულ მოთამაშეს 10 ვირტუალური ხინკალი აქვს. ოთახის შემქმნელი ირჩევს ფსონს, გამარჯვებული მას იღებს. ეს მხოლოდ თამაშია, ფულის ღირებულება არ აქვს.</li>
-        <li><b>როგორ შეჭამ:</b> თამაშამდე უნდა აირჩიო. ხელით და თავით დაჭერა ან ჩანგალი თავში ჩარჭობა გამოდის. დანა-ჩანგალი, ჩანგალი მუცელში ან ხელით მუცლიდან დაჭერა მაშინვე წაგებაა.</li>
-        <li><b>კამათელი:</b> ყოველ რაუნდზე ორივე აგორებს. ვისაც მეტი მოუვა, ის აკეთებს სვლას. ფრეზე თავიდან.</li>
+        <li><b>როგორ შეჭამ:</b> თამაშამდე უნდა აირჩიო. ხელით ხინკალს ნებისმიერ ადგილას დაიჭერ. ჩანგალი თავში (ზედა კვანძი) უნდა ჩაარჭო, მუცელში ჩარჭობა წაგებაა. დანა-ჩანგალი მაშინვე წაგებაა.</li>
+        <li><b>კამათელი:</b> ყოველ რაუნდზე ჯერ ერთი მოთამაშე აგორებს, მერე მეორე. ვისაც მეტი მოუვა, ის აკეთებს სვლას. ფრეზე თავიდან.</li>
         <li>თითო ხინკალს 5 ნაჭერი აქვს.</li>
         <li><b>ბულიონი:</b> პირველი ნაკბენის შემდეგ შენი შემდეგი სვლა უნდა იყოს ბულიონის დალევა, თორემ დაიღვრება და წააგებ.</li>
         <li><b>ჩაკბიჩე:</b> მოწინააღმდეგის ხინკალს აკლდება 1 ნაჭერი.</li>
         <li><b>დაიცავი:</b> მოწინააღმდეგის შემდეგი ნაკბენი დაიბლოკება.</li>
         <li><b>შეჭამე ფარულად:</b> 50% შანსია, რომ 2 ნაჭერი დააკლდეს, და 50%, რომ არაფერი მოხდეს.</li>
-        <li>ვისი ხინკალიც მთლიანად გაქრება, ის წააგებს.</li>
+        <li>ვისი ხინკალიც მთლიანად გაქრება, ის წააგებს. გამარჯვებული იღებს ფსონის ორმაგს, წაგებული კარგავს ფსონს.</li>
       </ul>
     </details>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -133,7 +134,7 @@
 
     <div class="card choose" id="choose" hidden>
       <h2>როგორ შეჭამ ხინკალს?</h2>
-      <p class="lede">არჩევანი დამალულია, მოწინააღმდეგე ვერ ხედავს. ზოგი არჩევანი მაშინვე წაგებაა.</p>
+      <p class="lede">არჩევანი დამალულია, მოწინააღმდეგე ვერ ხედავს. ხელით ხინკალს ნებისმიერ ადგილას დაიჭერ. ჩანგალი მხოლოდ თავში უნდა ჩაარჭო. დანა-ჩანგალი მაშინვე წაგებაა.</p>
       <div class="tools">
         <button type="button" class="act" id="toolHand"><b>🖐 ხელით</b></button>
         <button type="button" class="act" id="toolFork"><b>🍴 ჩანგლით</b></button>
@@ -169,6 +170,21 @@
   </section>
 
 </main>
+<div class="stage" id="diceStage" role="dialog" aria-modal="true" aria-label="კამათელი" hidden>
+  <div class="stagecard">
+    <h2>კამათელი</h2>
+    <div class="dicecol">
+      <div class="diename" id="dieOppName"></div>
+      <div class="die" id="dieOpp"></div>
+    </div>
+    <div class="dicecol">
+      <div class="die" id="dieMe"></div>
+      <div class="diename" id="dieMeName"></div>
+    </div>
+    <p class="dicemsg" id="diceMsg" aria-live="polite"></p>
+    <button type="button" class="btn primary rollbtn" id="rollBtn">🎲 გააგორე კამათელი</button>
+  </div>
+</div>
 <script src="rules.js"></script>
 <script src="app.js"></script>
 </body>

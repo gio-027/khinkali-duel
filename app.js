@@ -16,11 +16,12 @@ var ws = null, wsOpen = false, queue = [], retry = 0, retryTimer = null, intenti
 var oppOnline = true, closed = false, connLost = false, pending = false;
 var prevHp = { a: MAX, b: MAX };
 var timers = {}, toastTimer = null;
+var pendingReact = null, resShownFor = '';
 var holdStage = false, heldDice = null, anim = { a: false, b: false }, faces = { a: null, b: null };
 var chosenTool = null;      // 'hand' | 'fork' (არჩევის ეკრანზე)
 var roomStake = 0;
 var FACES = '\u2680\u2681\u2682\u2683\u2684\u2685';
-var SESSION_KEY = 'khinkali-session', NAME_KEY = 'khinkali-name', MUTE_KEY = 'khinkali-muted';
+var SESSION_KEY = 'khinkali-session', NAME_KEY = 'khinkali-name', MUTE_KEY = 'khinkali-muted', MUSIC_KEY = 'khinkali-music';
 
 /* ---------- დამხმარე ფუნქციები ---------- */
 function cleanName(s) {
@@ -147,6 +148,12 @@ var Sound = (function () {
       for (var i = 0; i < 6; i++) noise(t + i * 0.06, 0.05, 0.5, 2200 + Math.random() * 1800, 1.5);
       tone(700, t + 0.42, 0.06, 'triangle', 0.18);
     },
+    boing: function (t) { tone(220, t, 0.28, 'sine', 0.22, 760); tone(760, t + 0.28, 0.12, 'triangle', 0.14, 520); },
+    wah: function (t) {
+      [[392, 370], [370, 349], [349, 330], [330, 247]].forEach(function (f, i) {
+        tone(f[0], t + i * 0.26, i === 3 ? 0.55 : 0.22, 'sawtooth', 0.1, f[1]);
+      });
+    },
     turn: function (t) { tone(660, t, 0.09, 'sine', 0.14); tone(880, t + 0.09, 0.12, 'sine', 0.14); },
     win: function (t) {
       [523, 659, 784, 1047].forEach(function (f, i) { tone(f, t + i * 0.12, 0.3, 'triangle', 0.22); });
@@ -156,6 +163,9 @@ var Sound = (function () {
   };
   return {
     unlock: function () { ensure(); },
+    context: function () { return ensure(); },
+    pause: function () { try { if (ctx && ctx.suspend) ctx.suspend(); } catch (e) {} },
+    wake: function () { try { if (ctx && ctx.resume) ctx.resume(); } catch (e) {} },
     play: function (name) {
       if (muted) return;
       var c = ensure();
@@ -164,6 +174,92 @@ var Sound = (function () {
     },
     isMuted: function () { return muted; },
     setMuted: function (m) { muted = !!m; lsSet(MUTE_KEY, muted ? '1' : '0'); }
+  };
+})();
+
+
+/* ---------- საუნდტრეკი: თავად ვაგენერირებთ, ფაილი არ სჭირდება ---------- */
+/* დაძაბული ბანი და გულისცემა, რომელზეც ხანდახან მხიარული, ოდნავ სასაცილო მოტივი ჩაერთვება.
+   რაც ხინკალი მცირდება, მით უფრო დაძაბული ხდება. */
+var Music = (function () {
+  var wanted = (lsGet(MUSIC_KEY) !== '0'), running = false, timer = null, step = 0, nextT = 0, inten = 0.25;
+  var out = null, hatBuf = null;
+  var BPM = 92, SPS = 60 / BPM / 4, ROOT = 73.42;
+  var OST = [0, 0, 1, 0, 0, 3, 0, 1];
+  var MOTIF = [24, 27, 24, 31, 29, 27, 24];
+  function hz(n) { return ROOT * Math.pow(2, n / 12); }
+  function note(c, type, f, t, dur, vol, slide, cut, att) {
+    var o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    fl.type = 'lowpass'; fl.frequency.value = cut || 2000;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + (att || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(fl); fl.connect(g); g.connect(out);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function hat(c, t, vol) {
+    var src = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = hatBuf; fl.type = 'highpass'; fl.frequency.value = 6500;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(fl); fl.connect(g); g.connect(out);
+    src.start(t); src.stop(t + 0.06);
+  }
+  function sched(c, st, t) {
+    var bar = Math.floor(st / 16), s = st % 16, I = inten, k;
+    if (s === 0 && bar % 2 === 0) {                                   // ბნელი აკორდი
+      [0, 7, 12, 15].forEach(function (n) { note(c, 'sawtooth', hz(n), t, SPS * 32, 0.045, null, 240 + I * 500, 1.6); });
+    }
+    if (I > 0.2 && (s === 0 || s === 6)) note(c, 'sine', 95, t, 0.24, (s === 0 ? 0.9 : 0.5) * (0.4 + I * 0.6), 42, 400);   // გულისცემა
+    if (I > 0.3 && s % 2 === 0) note(c, 'sawtooth', hz(OST[(s / 2) % 8]), t, SPS * 1.7, 0.08 * I, null, 450 + I * 900);       // დაძაბული ბანი
+    if (I > 0.65 && s % 2 === 1) hat(c, t, 0.12);
+    if (bar % 4 === 3 && s === 0 && Math.random() < 0.7) {             // სახალისო მოტივი
+      for (k = 0; k < MOTIF.length; k++) note(c, 'triangle', hz(MOTIF[k]), t + k * SPS * 2, SPS * 1.5, 0.12, null, 3200);
+      note(c, 'square', hz(24), t + MOTIF.length * SPS * 2, 0.35, 0.05, hz(15), 1200);
+    }
+    if (bar % 2 === 1 && s === 10 && Math.random() < 0.18) note(c, 'sine', hz(31), t, 0.22, 0.12, hz(43), 2500);       // „ბოინგი“
+  }
+  function loop() {
+    var c = Sound.context();
+    if (!running || !c) return;
+    while (nextT < c.currentTime + 0.3) { sched(c, step % 128, nextT); nextT += SPS; step++; }
+    timer = setTimeout(loop, 120);
+  }
+  function start() {
+    if (running || !wanted || Sound.isMuted()) return;
+    var c = Sound.context();
+    if (!c) return;
+    if (!hatBuf) {
+      var len = Math.floor(c.sampleRate * 0.06);
+      hatBuf = c.createBuffer(1, len, c.sampleRate);
+      var d = hatBuf.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    out = c.createGain();
+    out.gain.value = 0.0001;
+    out.gain.linearRampToValueAtTime(0.3, c.currentTime + 1.5);
+    out.connect(c.destination);
+    running = true; nextT = c.currentTime + 0.1; step = 0;
+    loop();
+  }
+  function stop() {
+    running = false; clearTimeout(timer);
+    var c = Sound.context(), o = out;
+    out = null;
+    if (c && o) {
+      try { o.gain.setTargetAtTime(0.0001, c.currentTime, 0.15); } catch (e) {}
+      setTimeout(function () { try { o.disconnect(); } catch (e) {} }, 800);
+    }
+  }
+  return {
+    kick: function () { if (!running) start(); },
+    sync: function () { if (wanted && !Sound.isMuted()) start(); else stop(); },
+    toggle: function () { wanted = !wanted; lsSet(MUSIC_KEY, wanted ? '1' : '0'); Music.sync(); },
+    isOn: function () { return wanted && !Sound.isMuted(); },
+    wanted: function () { return wanted; },
+    setIntensity: function (x) { inten = Math.max(0.15, Math.min(1, x)); }
   };
 })();
 
@@ -193,24 +289,30 @@ function eventSound(s) {
 }
 
 /* ---------- ხინკლის ნახატი ---------- */
-// ქართული ფერები: ღვინისფერი, ოქროსფერი, სპილოსძვლისფერი
+// ფენტეზი სცენა: მეწამული ღამე, ოქროსფერი ნათება
 var BITES = [[156, 128, 18], [164, 152, 17], [128, 170, 18], [40, 140, 18], [72, 168, 18]];
 function plateSVG(uid) {
-  // ქსოვილი ქართული ორნამენტით (ბორჯღალის მსგავსი ხვეული ბადე), ზემოდან თეფში
-  var tile = '<pattern id="o-' + uid + '" width="26" height="26" patternUnits="userSpaceOnUse">' +
-    '<rect width="26" height="26" fill="#7E1625"/>' +
-    '<path d="M13 3 L23 13 L13 23 L3 13 Z" fill="none" stroke="#D9A441" stroke-width="1.3"/>' +
-    '<path d="M13 8 C17 8 18 12 14 13 C10 14 9 18 13 18 M8 13 C8 9 12 8 13 12 C14 16 18 17 18 13" fill="none" stroke="#E9C46A" stroke-width="1.1" stroke-linecap="round"/>' +
-    '<circle cx="0" cy="0" r="1.6" fill="#D9A441"/><circle cx="26" cy="0" r="1.6" fill="#D9A441"/><circle cx="0" cy="26" r="1.6" fill="#D9A441"/><circle cx="26" cy="26" r="1.6" fill="#D9A441"/>' +
-    '</pattern>';
-  return '<defs>' + tile + '<clipPath id="k-' + uid + '"><rect x="0" y="0" width="200" height="200" rx="22"/></clipPath></defs>' +
+  // ფენტეზი-ტიპის სცენა: მაგიური ბეჭდის ნათება ბნელ ქვაზე, ზემოდან ოქროთი შემოვლებული თეფში
+  var ticks = '', i, a, x1, y1, x2, y2;
+  for (i = 0; i < 16; i++) {
+    a = i * Math.PI / 8;
+    x1 = 100 + Math.cos(a) * 80; y1 = 150 + Math.sin(a) * 26;
+    x2 = 100 + Math.cos(a) * 90; y2 = 150 + Math.sin(a) * 30;
+    ticks += '<path d="M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' L' + x2.toFixed(1) + ' ' + y2.toFixed(1) + '"/>';
+  }
+  return '<defs>' +
+    '<radialGradient id="o-' + uid + '" cx="50%" cy="72%" r="75%"><stop offset="0" stop-color="#4B2A8F"/><stop offset=".55" stop-color="#1B1038"/><stop offset="1" stop-color="#090514"/></radialGradient>' +
+    '<radialGradient id="g-' + uid + '" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#F0B545" stop-opacity=".55"/><stop offset="1" stop-color="#F0B545" stop-opacity="0"/></radialGradient>' +
+    '<clipPath id="k-' + uid + '"><rect x="0" y="0" width="200" height="200" rx="22"/></clipPath></defs>' +
     '<g clip-path="url(#k-' + uid + ')"><rect width="200" height="200" fill="url(#o-' + uid + ')"/>' +
-    '<rect x="5" y="5" width="190" height="190" rx="18" fill="none" stroke="#E9C46A" stroke-width="3"/>' +
-    '<rect x="11" y="11" width="178" height="178" rx="13" fill="none" stroke="#D9A441" stroke-width="1" stroke-dasharray="3 4"/></g>' +
-    '<ellipse cx="100" cy="166" rx="92" ry="28" fill="#5E0F1B" opacity=".55"/>' +
-    '<ellipse cx="100" cy="160" rx="90" ry="29" fill="#F4ECDD" stroke="#D9A441" stroke-width="2.5"/>' +
-    '<ellipse cx="100" cy="160" rx="76" ry="22" fill="#EADFC8" stroke="#A3192B" stroke-width="2"/>' +
-    '<ellipse cx="100" cy="158" rx="62" ry="16" fill="#F7F0E1"/>';
+    '<circle cx="34" cy="30" r="1.4" fill="#fff" opacity=".8"/><circle cx="160" cy="24" r="1.1" fill="#fff" opacity=".7"/><circle cx="120" cy="46" r="1.2" fill="#C8B6FF" opacity=".7"/><circle cx="60" cy="58" r="1" fill="#fff" opacity=".6"/><circle cx="178" cy="70" r="1.3" fill="#fff" opacity=".7"/>' +
+    '<ellipse cx="100" cy="152" rx="104" ry="48" fill="url(#g-' + uid + ')"/>' +
+    '<g class="runes" fill="none" stroke="#F0B545" stroke-width="1.6" opacity=".85"><ellipse cx="100" cy="150" rx="84" ry="27" stroke-dasharray="2 5"/><ellipse cx="100" cy="150" rx="92" ry="31"/>' + ticks + '</g>' +
+    '<rect x="4" y="4" width="192" height="192" rx="19" fill="none" stroke="#8E6BFF" stroke-opacity=".5" stroke-width="2"/></g>' +
+    '<ellipse cx="100" cy="164" rx="86" ry="26" fill="#000" opacity=".5"/>' +
+    '<ellipse cx="100" cy="160" rx="84" ry="27" fill="#F4ECDD" stroke="#F0B545" stroke-width="2.5"/>' +
+    '<ellipse cx="100" cy="160" rx="70" ry="20" fill="#EADFC8" stroke="#8E6BFF" stroke-width="1.5"/>' +
+    '<ellipse cx="100" cy="158" rx="58" ry="15" fill="#F7F0E1"/>';
 }
 function khinkaliSVG(hp, shield, uid) {
   if (hp <= 0) {
@@ -244,6 +346,70 @@ function khinkaliSVG(hp, shield, uid) {
     '<ellipse cx="78" cy="118" rx="16" ry="7" fill="#fff" opacity=".3" transform="rotate(-20 78 118)"/>' +
     (shield ? '<ellipse class="ring" cx="100" cy="122" rx="94" ry="68"/>' : '') +
     '</svg>';
+}
+
+
+/* ---------- სახალისო სცენები (ანიმაციები ჩვენი ორიგინალია, ემოჯი + ტექსტი) ---------- */
+var ROLL_SCENES = {
+  1: [{ e: [['🚐', 'slide'], ['🧍', 'shake']], bg: 'gold', cap: 'ერთიანი! მარშრუტკა წავიდა, შენ კი გაჩერებაზე დარჩი.' },
+      { e: [['📉', 'bounce'], ['💸', 'float']], bg: 'night', cap: 'ერთიანი! კურსივით დაეცა და აღარ ამოდის.' }],
+  2: [{ e: [['🐢', 'slide']], bg: 'green', cap: 'ორიანი. ნელა, მაგრამ მაინც ნელა.' },
+      { e: [['📶', 'wobble'], ['🤦', 'shake']], bg: 'night', cap: 'ორიანი. ინტერნეტივით: არის, მაგრამ არაფრის მაქნისი.' }],
+  3: [{ e: [['🍷', 'wobble'], ['🧔', 'bounce']], bg: 'wine', cap: 'სამიანი! ტამადამ ჯერ მხოლოდ შესავალი თქვა.' },
+      { e: [['🚗', 'slide'], ['🚕', 'slide'], ['🚙', 'slide']], bg: 'night', cap: 'სამიანი. თბილისის საცობივით: მიდიხარ, მაგრამ არსად.' }],
+  4: [{ e: [['🧀', 'bounce'], ['😋', 'zoom']], bg: 'gold', cap: 'ოთხიანი. ცუდი არაა, მაგრამ ხაჭაპურს ვერ შეედრება.' },
+      { e: [['🧔', 'wobble'], ['👍', 'pop']], bg: 'green', cap: 'ოთხიანი! ბიძაჩემი იტყოდა: „ნორმალურია, ბიჭო“.' }],
+  5: [{ e: [['🍖', 'float'], ['🔥', 'puff']], bg: 'wine', cap: 'ხუთიანი! მწვადივით: დიდხანს ელოდი და ღირდა.' },
+      { e: [['💃', 'bounce'], ['🕺', 'bounce']], bg: 'gold', cap: 'ხუთიანი! ქორწილი დაიწყო, ფეხები თავისით დადის.' }],
+  6: [{ e: [['🎉', 'spin'], ['🥇', 'zoom']], bg: 'gold', cap: 'ექვსიანი! სუფრა ფეხზე წამოდგა და ამ ქულას უღებს.' },
+      { e: [['🍾', 'pop'], ['🕺', 'bounce']], bg: 'wine', cap: 'ექვსიანი! ტამადა ღვინოს ივსებს, დღესასწაულია.' }]
+};
+var WIN_SCENES = [
+  { e: [['👵', 'float'], ['🙏', 'pop']], bg: 'gold', cap: 'გაგიმართლა! ბებიამ ლოცვა გაგიმართლა.' },
+  { e: [['🥂', 'bounce'], ['🎤', 'zoom']], bg: 'wine', cap: 'რაუნდი შენია! ახლა ტოსტიც შეგიძლია თქვა.' },
+  { e: [['👏', 'bounce'], ['🏠', 'float']], bg: 'green', cap: 'გაგიმართლა! მეზობლებმა ბალკონიდან ტაში დაგიკრეს.' },
+  { e: [['🧔', 'wobble'], ['😎', 'pop']], bg: 'night', cap: 'შენ იგებ! ბიძაშვილმა თქვა, ეს ჩემი დამსახურებააო.' },
+  { e: [['🌤️', 'float'], ['😊', 'zoom']], bg: 'gold', cap: 'ბედმა გაგიღიმა. თბილისში ეს ამინდზე იშვიათია.' },
+  { e: [['🥩', 'bounce'], ['🔥', 'puff']], bg: 'wine', cap: 'მოიგე! მანგალზე მწვადიც შენთვის დადეს.' },
+  { e: [['💪', 'pop'], ['🏆', 'spin']], bg: 'gold', cap: 'რაუნდი შენია! ვინ თქვა, რომ ხინკალი მხოლოდ საჭმელია?' },
+  { e: [['🍀', 'spin'], ['🧿', 'wobble']], bg: 'green', cap: 'გაგიმართლა! თვალის ცემა არ მოგდის, ცხადია.' }
+];
+var LOSE_SCENES = [
+  { e: [['🧍', 'shake'], ['🚪', 'slide']], bg: 'old', old: true, cap: '„ეს რა ხდება?!“ — თქვა გმირმა და ისევ დამარცხდა.' },
+  { e: [['🕴️', 'wobble'], ['🌧️', 'float']], bg: 'old', old: true, cap: 'ძველ ფილმებში გმირი ყოველთვის იგებდა. აქ კი არა.' },
+  { e: [['🎩', 'spin'], ['🧔', 'shake']], bg: 'old', old: true, cap: 'მეორე სერია უკეთესი იქნება... ალბათ.' },
+  { e: [['📺', 'shake'], ['😢', 'float']], bg: 'old', old: true, cap: 'ამ სცენის გადაღებისას არავინ დაზარალებულა, გარდა შენი ამბიციისა.' },
+  { e: [['🎬', 'pop'], ['🤷', 'wobble']], bg: 'old', old: true, cap: 'რეჟისორმა თქვა: „კარგი დუბლია!“ და შენ მაინც წააგე.' },
+  { e: [['🎻', 'wobble'], ['😭', 'bounce']], bg: 'old', old: true, cap: 'ორკესტრი სევდიან მელოდიას უკრავს. მაყურებელი ტირის (სიცილით).' },
+  { e: [['👴', 'bounce'], ['📺', 'zoom']], bg: 'old', old: true, cap: 'სადღაც ბაბუა ტელევიზორთან ამბობს: „ეგ ჩვენი გმირი არ არის“.' },
+  { e: [['🌅', 'float'], ['🚶', 'slide']], bg: 'old', old: true, cap: 'ბოლო კადრი: გმირი მზის ჩასვლისკენ მიდის. ფსონი კი სხვამ წაიღო.' }
+];
+var bags = {};
+function drawScene(key, pool) {
+  var b = bags[key], i, j, t;
+  if (!b || !b.length) {
+    b = [];
+    for (i = 0; i < pool.length; i++) b.push(i);
+    for (i = b.length - 1; i > 0; i--) { j = Math.floor(Math.random() * (i + 1)); t = b[i]; b[i] = b[j]; b[j] = t; }
+    bags[key] = b;
+  }
+  return pool[b.pop()];
+}
+function sceneHTML(sc) {
+  var out = '<div class="scene bg-' + sc.bg + (sc.old ? ' oldfilm' : '') + '">', i;
+  for (i = 0; i < sc.e.length; i++) out += '<span class="an-' + sc.e[i][1] + '">' + sc.e[i][0] + '</span>';
+  return out + '</div>';
+}
+function showScene(sceneId, capId, sc) {
+  $(sceneId).innerHTML = sc ? sceneHTML(sc) : '';
+  $(capId).textContent = sc ? sc.cap : '';
+  $(capId).classList.toggle('inter', !!(sc && sc.old));
+}
+function clearReaction() { showScene('reactScene', 'reactCap', null); }
+function rollReaction(value) { showScene('reactScene', 'reactCap', drawScene('v' + value, ROLL_SCENES[value] || ROLL_SCENES[3])); }
+function roundResultScene(mine) {
+  showScene('reactScene', 'reactCap', mine ? drawScene('win', WIN_SCENES) : drawScene('lose', LOSE_SCENES));
+  Sound.play(mine ? 'boing' : 'wah');
 }
 
 /* კამათლის ნახატი */
@@ -337,6 +503,18 @@ function updateBanner() {
   b.hidden = !text;
 }
 
+function flushReaction() {
+  var pr = pendingReact;
+  if (!pr || anim.a || anim.b) return;
+  pendingReact = null;
+  rollReaction(pr.value);
+  clearTimeout(timers.react2);
+  if (pr.done) {
+    timers.react2 = setTimeout(function () {
+      if (state && state.phase === 'play' && state.step === 'act') roundResultScene(state.turn === role);
+    }, 1500);
+  }
+}
 function animateDie(x) {
   var count = 0;
   anim[x] = true;
@@ -345,7 +523,7 @@ function animateDie(x) {
     faces[x] = 1 + Math.floor(Math.random() * 6);
     renderStage();
     if (++count < 9) timers['die' + x] = setTimeout(step, 90);
-    else { anim[x] = false; renderStage(); }
+    else { anim[x] = false; renderStage(); flushReaction(); }
   })();
 }
 
@@ -356,6 +534,8 @@ function renderStage() {
   $('diceStage').hidden = !on;
   $('appMain').classList.toggle('staged', on);
   if (!on) return;
+  if (s.step === 'roll' && s.dice.a === null && s.dice.b === null && !anim.a && !anim.b) { pendingReact = null; clearReaction(); }
+  $('skipHint').hidden = !holdStage;
   var d = (holdStage && heldDice) ? heldDice : s.dice;
   function val(x) { return anim[x] ? faces[x] : d[x]; }
   $('dieMe').innerHTML = dieSVG(val(me));
@@ -424,6 +604,14 @@ function render() {
     $('resSub').textContent = resultSub(s, me);
     $('againBtn').hidden = false;
   }
+  Music.setIntensity(0.2 + 0.8 * (1 - Math.min(s.hp.a, s.hp.b) / MAX));
+  if (s.over && !closed) {
+    var key = s.game + ':' + s.n;
+    if (resShownFor !== key) {
+      resShownFor = key;
+      showScene('resScene', 'resCap', (s.over === me) ? drawScene('win', WIN_SCENES) : drawScene('lose', LOSE_SCENES));
+    }
+  } else if (!s.over) { resShownFor = ''; showScene('resScene', 'resCap', null); }
   updateBanner();
   renderStage();
 }
@@ -447,14 +635,17 @@ function setState(next) {
   }
   if (next.n !== prev.n) {
     eventSound(next);
-    if (next.ev && /^roll/.test(next.ev.kind)) animateDie(next.ev.who);
+    if (next.ev && /^roll/.test(next.ev.kind)) {
+      pendingReact = { value: next.ev.value, done: next.ev.kind === 'roll_done' };
+      animateDie(next.ev.who);
+    }
   }
   if (next.step === 'roll' || next.phase !== 'play') { holdStage = false; clearTimeout(timers.hold); }
   if (prev.step === 'roll' && next.step === 'act' && next.phase === 'play' && next.n !== prev.n) {
     holdStage = true;
     heldDice = { a: next.dice.a, b: next.dice.b };
     clearTimeout(timers.hold);
-    timers.hold = setTimeout(function () { holdStage = false; render(); }, 1900);
+    timers.hold = setTimeout(function () { holdStage = false; render(); }, 4400);
   }
   render();
   maybeBotTurn();
@@ -466,7 +657,7 @@ function maybeBotTurn() {
   if (mode !== 'bot' || !state || state.over) return;
   if (state.phase === 'choose' && !state.picked.b) timers.bot = setTimeout(botPick, 800 + Math.random() * 600);
   else if (state.phase === 'play' && state.step === 'roll' && state.roller === 'b') timers.bot = setTimeout(botRoll, 1100 + Math.random() * 500);
-  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 2500 + Math.random() * 600);
+  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 4700 + Math.random() * 600);
 }
 function botPick() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'choose' || state.picked.b) return;
@@ -552,7 +743,8 @@ function scheduleRetry() {
 function resetNet() {
   intentional = true;
   clearTimeout(retryTimer);
-  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB);
+  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB); clearTimeout(timers.react2);
+  pendingReact = null;
   holdStage = false; heldDice = null; anim = { a: false, b: false };
   var old = ws;
   ws = null; wsOpen = false; queue = []; retry = 0;
@@ -739,6 +931,17 @@ if (navigator.share) {
 }
 
 var soundBtns = document.querySelectorAll('.soundbtn');
+var musicBtns = document.querySelectorAll('.musicbtn');
+function paintMusic() {
+  Array.prototype.forEach.call(musicBtns, function (b) { b.setAttribute('aria-pressed', Music.isOn() ? 'true' : 'false'); });
+}
+Array.prototype.forEach.call(musicBtns, function (b) {
+  b.onclick = function () { Sound.unlock(); Music.toggle(); paintMusic(); Sound.play('click'); };
+});
+$('diceStage').onclick = function () {
+  if (!holdStage) return;
+  holdStage = false; clearTimeout(timers.hold); render();
+};
 function paintSound() {
   Array.prototype.forEach.call(soundBtns, function (b) { b.setAttribute('aria-pressed', Sound.isMuted() ? 'false' : 'true'); });
 }
@@ -746,16 +949,18 @@ Array.prototype.forEach.call(soundBtns, function (b) {
   b.onclick = function () {
     Sound.setMuted(!Sound.isMuted());
     paintSound();
+    Music.sync(); paintMusic();
     Sound.play('click');
   };
 });
-paintSound();
+paintSound(); paintMusic();
 ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (ev) {
-  document.addEventListener(ev, function () { Sound.unlock(); }, { passive: true });
+  document.addEventListener(ev, function () { Sound.unlock(); Music.kick(); }, { passive: true });
 });
 
 /* ტელეფონზე ეკრანის გამოღვიძების შემდეგ კავშირს ვაახლებთ */
 document.addEventListener('visibilitychange', function () {
+  if (document.hidden) Sound.pause(); else Sound.wake();
   if (!document.hidden && mode === 'online' && !ws && (session || queue.length)) { retry = 0; connect(); }
 });
 window.addEventListener('online', function () {

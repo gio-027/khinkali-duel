@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
 // მხოლოდ ეს ფაილები ეგზავნება ბრაუზერს; server.js და package.json არასოდეს
-const STATIC_FILES = ['index.html', 'app.js', 'rules.js', 'style.css', 'manifest.webmanifest', 'icon.svg'];
+const STATIC_FILES = ['index.html', 'app.js', 'rules.js', 'style.css', 'manifest.webmanifest', 'icon.svg', 'bg.svg', 'tile.svg'];
 const missing = STATIC_FILES.filter((n) => !fs.existsSync(path.join(__dirname, n)));
 if (missing.length) {
   console.error('ფაილები აკლია / Missing files: ' + missing.join(', '));
@@ -31,7 +31,10 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.webmanifest': 'application/manifest+json',
   '.ico': 'image/x-icon',
-  '.png': 'image/png'
+  '.png': 'image/png',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.gif': 'image/gif'
 };
 
 const CSP = [
@@ -40,6 +43,7 @@ const CSP = [
   "style-src 'self' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
   "img-src 'self' data:",
+  "media-src 'self'",
   "connect-src 'self' ws: wss:",
   "manifest-src 'self'",
   "base-uri 'none'",
@@ -56,17 +60,55 @@ for (const name of STATIC_FILES) {
   });
 }
 
+/* ძველი ფილმის მოკლე კლიპები (არასავალდებულო): ფაილები clip-win-*.mp4, clip-lose-*.mp4, clip-roll-*.mp4 (ასევე .webm, .gif).
+   თუ ასეთი ფაილები საცავშია, თამაში თავად აღმოაჩენს და გამოაჩენს. */
+const CLIP_RE = /^clip-(win|lose|roll)[a-z0-9_-]*\.(mp4|webm|gif)$/i;
+const clipList = { win: [], lose: [], roll: [] };
+try {
+  for (const name of fs.readdirSync(__dirname)) {
+    const m = CLIP_RE.exec(name);
+    if (!m) continue;
+    const st = fs.statSync(path.join(__dirname, name));
+    if (!st.isFile() || st.size > 8 * 1024 * 1024) continue;
+    files.set('/' + name, { body: fs.readFileSync(path.join(__dirname, name)), type: TYPES['.' + m[2].toLowerCase()], media: true });
+    clipList[m[1].toLowerCase()].push(name);
+  }
+} catch (e) { /* კლიპების გარეშეც მუშაობს */ }
+const clipsJson = JSON.stringify(clipList);
+console.log('clips: win ' + clipList.win.length + ', lose ' + clipList.lose.length + ', roll ' + clipList.roll.length);
+
 const server = http.createServer((req, res) => {
   let p = (req.url || '/').split('?')[0];
   if (p === '/healthz') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     return res.end('ok');
   }
+  if (p === '/clips.json') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
+    return res.end(clipsJson);
+  }
   if (p === '/') p = '/index.html';
   const f = files.get(p);
   if (!f || (req.method !== 'GET' && req.method !== 'HEAD')) {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     return res.end('Not found');
+  }
+  if (f.media) {                                   // ვიდეოს Safari-სთვის Range სჭირდება
+    const total = f.body.length;
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    const hdr = { 'content-type': f.type, 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' };
+    if (m && (m[1] !== '' || m[2] !== '')) {
+      let a = m[1] === '' ? Math.max(0, total - parseInt(m[2], 10)) : parseInt(m[1], 10);
+      let b = m[1] === '' || m[2] === '' ? total - 1 : Math.min(parseInt(m[2], 10), total - 1);
+      if (a > b || a >= total) { res.writeHead(416, { 'content-range': 'bytes */' + total }); return res.end(); }
+      hdr['content-range'] = 'bytes ' + a + '-' + b + '/' + total;
+      hdr['content-length'] = b - a + 1;
+      res.writeHead(206, hdr);
+      return res.end(req.method === 'HEAD' ? undefined : f.body.subarray(a, b + 1));
+    }
+    hdr['content-length'] = total;
+    res.writeHead(200, hdr);
+    return res.end(req.method === 'HEAD' ? undefined : f.body);
   }
   res.writeHead(200, {
     'content-type': f.type,
@@ -229,7 +271,7 @@ function onMove(ws, m) {
   if (!room || !room.state) return;
   const s = room.state;
   const act = m.act;
-  const valid = act === 'bite' || act === 'defend' || act === 'risky' || act === 'sip';
+  const valid = act === 'bite' || act === 'sip';
   if (!valid || s.over || s.phase !== 'play' || s.turn !== c.role) return sendState(ws, room);
   const next = Rules.reduceMove(s, act, rng);
   if (!next) return sendState(ws, room);

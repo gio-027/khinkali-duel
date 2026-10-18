@@ -148,6 +148,12 @@ var Sound = (function () {
       for (var i = 0; i < 6; i++) noise(t + i * 0.06, 0.05, 0.5, 2200 + Math.random() * 1800, 1.5);
       tone(700, t + 0.42, 0.06, 'triangle', 0.18);
     },
+    boom: function (t) { tone(70, t, 1.1, 'sine', 0.7, 28); noise(t, 0.6, 0.6, 120, 0.7, 'lowpass'); },
+    sting: function (t) { tone(466, t, 0.9, 'sawtooth', 0.09, 440); tone(659, t, 0.9, 'sawtooth', 0.08, 622); tone(932, t + 0.05, 0.7, 'square', 0.04, 880); },
+    fanfare: function (t) {
+      [[392, 0], [523, .14], [659, .28], [784, .42], [1047, .62]].forEach(function (n) { tone(n[0], t + n[1], n[0] === 1047 ? .8 : .22, 'sawtooth', 0.1); tone(n[0] * 2, t + n[1], .2, 'triangle', 0.06); });
+    },
+    reel: function (t) { for (var i = 0; i < 9; i++) noise(t + i * 0.045, 0.03, 0.35, 1800 + (i % 2) * 900, 2); tone(110, t, 0.5, 'sine', 0.12, 80); },
     boing: function (t) { tone(220, t, 0.28, 'sine', 0.22, 760); tone(760, t + 0.28, 0.12, 'triangle', 0.14, 520); },
     wah: function (t) {
       [[392, 370], [370, 349], [349, 330], [330, 247]].forEach(function (f, i) {
@@ -268,17 +274,13 @@ function eventSound(s) {
   if (!ev) return;
   var mine = (ev.who === role), k = ev.kind;
   if (k === 'bite') Sound.play(mine ? 'bite' : 'hurt');
-  else if (k === 'risky_hit') Sound.play(mine ? 'crit' : 'hurt2');
-  else if (k === 'risky_miss') Sound.play('miss');
-  else if (k === 'defend') Sound.play('defend');
-  else if (k === 'blocked') Sound.play('blocked');
   else if (k === 'sip') Sound.play('sip');
   else if (k === 'spill' || k === 'wrong_method') Sound.play('spill');
   else if (k === 'ready') Sound.play('start');
   else if (k === 'roll' || k === 'roll_tie' || k === 'roll_done') Sound.play('dice');
   else if (k === 'locked') Sound.play('click');
-  if (!mine && (k === 'bite' || k === 'risky_hit')) {
-    try { if (navigator.vibrate) navigator.vibrate(k === 'bite' ? 60 : [60, 40, 60]); } catch (e) {}
+  if (!mine && k === 'bite') {
+    try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
   }
   clearTimeout(timers.after); clearTimeout(timers.after2);
   if (s.over) {
@@ -301,17 +303,17 @@ function plateSVG(uid) {
     ticks += '<path d="M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' L' + x2.toFixed(1) + ' ' + y2.toFixed(1) + '"/>';
   }
   return '<defs>' +
-    '<radialGradient id="o-' + uid + '" cx="50%" cy="72%" r="75%"><stop offset="0" stop-color="#4B2A8F"/><stop offset=".55" stop-color="#1B1038"/><stop offset="1" stop-color="#090514"/></radialGradient>' +
+    '<radialGradient id="o-' + uid + '" cx="50%" cy="72%" r="75%"><stop offset="0" stop-color="#6B1A24"/><stop offset=".55" stop-color="#2A0A12"/><stop offset="1" stop-color="#0B0407"/></radialGradient>' +
     '<radialGradient id="g-' + uid + '" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#F0B545" stop-opacity=".55"/><stop offset="1" stop-color="#F0B545" stop-opacity="0"/></radialGradient>' +
     '<clipPath id="k-' + uid + '"><rect x="0" y="0" width="200" height="200" rx="22"/></clipPath></defs>' +
     '<g clip-path="url(#k-' + uid + ')"><rect width="200" height="200" fill="url(#o-' + uid + ')"/>' +
-    '<circle cx="34" cy="30" r="1.4" fill="#fff" opacity=".8"/><circle cx="160" cy="24" r="1.1" fill="#fff" opacity=".7"/><circle cx="120" cy="46" r="1.2" fill="#C8B6FF" opacity=".7"/><circle cx="60" cy="58" r="1" fill="#fff" opacity=".6"/><circle cx="178" cy="70" r="1.3" fill="#fff" opacity=".7"/>' +
+    '<circle cx="34" cy="30" r="1.4" fill="#fff" opacity=".8"/><circle cx="160" cy="24" r="1.1" fill="#fff" opacity=".7"/><circle cx="120" cy="46" r="1.2" fill="#FFE9B8" opacity=".7"/><circle cx="60" cy="58" r="1" fill="#fff" opacity=".6"/><circle cx="178" cy="70" r="1.3" fill="#fff" opacity=".7"/>' +
     '<ellipse cx="100" cy="152" rx="104" ry="48" fill="url(#g-' + uid + ')"/>' +
     '<g class="runes" fill="none" stroke="#F0B545" stroke-width="1.6" opacity=".85"><ellipse cx="100" cy="150" rx="84" ry="27" stroke-dasharray="2 5"/><ellipse cx="100" cy="150" rx="92" ry="31"/>' + ticks + '</g>' +
-    '<rect x="4" y="4" width="192" height="192" rx="19" fill="none" stroke="#8E6BFF" stroke-opacity=".5" stroke-width="2"/></g>' +
+    '<rect x="4" y="4" width="192" height="192" rx="19" fill="none" stroke="#D9A441" stroke-opacity=".5" stroke-width="2"/></g>' +
     '<ellipse cx="100" cy="164" rx="86" ry="26" fill="#000" opacity=".5"/>' +
     '<ellipse cx="100" cy="160" rx="84" ry="27" fill="#F4ECDD" stroke="#F0B545" stroke-width="2.5"/>' +
-    '<ellipse cx="100" cy="160" rx="70" ry="20" fill="#EADFC8" stroke="#8E6BFF" stroke-width="1.5"/>' +
+    '<ellipse cx="100" cy="160" rx="70" ry="20" fill="#EADFC8" stroke="#8E1B2A" stroke-width="1.5"/>' +
     '<ellipse cx="100" cy="158" rx="58" ry="15" fill="#F7F0E1"/>';
 }
 function khinkaliSVG(hp, shield, uid) {
@@ -349,67 +351,187 @@ function khinkaliSVG(hp, shield, uid) {
 }
 
 
-/* ---------- სახალისო სცენები (ანიმაციები ჩვენი ორიგინალია, ემოჯი + ტექსტი) ---------- */
-var ROLL_SCENES = {
-  1: [{ e: [['🚐', 'slide'], ['🧍', 'shake']], bg: 'gold', cap: 'ერთიანი! მარშრუტკა წავიდა, შენ კი გაჩერებაზე დარჩი.' },
-      { e: [['📉', 'bounce'], ['💸', 'float']], bg: 'night', cap: 'ერთიანი! კურსივით დაეცა და აღარ ამოდის.' }],
-  2: [{ e: [['🐢', 'slide']], bg: 'green', cap: 'ორიანი. ნელა, მაგრამ მაინც ნელა.' },
-      { e: [['📶', 'wobble'], ['🤦', 'shake']], bg: 'night', cap: 'ორიანი. ინტერნეტივით: არის, მაგრამ არაფრის მაქნისი.' }],
-  3: [{ e: [['🍷', 'wobble'], ['🧔', 'bounce']], bg: 'wine', cap: 'სამიანი! ტამადამ ჯერ მხოლოდ შესავალი თქვა.' },
-      { e: [['🚗', 'slide'], ['🚕', 'slide'], ['🚙', 'slide']], bg: 'night', cap: 'სამიანი. თბილისის საცობივით: მიდიხარ, მაგრამ არსად.' }],
-  4: [{ e: [['🧀', 'bounce'], ['😋', 'zoom']], bg: 'gold', cap: 'ოთხიანი. ცუდი არაა, მაგრამ ხაჭაპურს ვერ შეედრება.' },
-      { e: [['🧔', 'wobble'], ['👍', 'pop']], bg: 'green', cap: 'ოთხიანი! ბიძაჩემი იტყოდა: „ნორმალურია, ბიჭო“.' }],
-  5: [{ e: [['🍖', 'float'], ['🔥', 'puff']], bg: 'wine', cap: 'ხუთიანი! მწვადივით: დიდხანს ელოდი და ღირდა.' },
-      { e: [['💃', 'bounce'], ['🕺', 'bounce']], bg: 'gold', cap: 'ხუთიანი! ქორწილი დაიწყო, ფეხები თავისით დადის.' }],
-  6: [{ e: [['🎉', 'spin'], ['🥇', 'zoom']], bg: 'gold', cap: 'ექვსიანი! სუფრა ფეხზე წამოდგა და ამ ქულას უღებს.' },
-      { e: [['🍾', 'pop'], ['🕺', 'bounce']], bg: 'wine', cap: 'ექვსიანი! ტამადა ღვინოს ივსებს, დღესასწაულია.' }]
+/* ---------- კინო-სცენები: მთელ ეკრანზე, ძველი ფირის სტილში (ყველაფერი ჩვენი ორიგინალია, ფაილები არ სჭირდება) ---------- */
+/* თუ საცავში დევს მოკლე კლიპები clip-win-*.mp4, clip-lose-*.mp4, clip-roll-*.mp4 (ან .webm/.gif),
+   სერვერი ისინი აღმოაჩენს და თამაში მათ გამოაჩენს; სხვა შემთხვევაში ჩვენი ნახატი სცენები ჩაირთვება. */
+var CLIPS = { win: [], lose: [], roll: [] };
+try {
+  fetch('clips.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (j && typeof j === 'object') ['win', 'lose', 'roll'].forEach(function (k) { if (Array.isArray(j[k])) CLIPS[k] = j[k].filter(function (n) { return /^clip-[a-z0-9_.-]+$/i.test(n); }); });
+  }).catch(function () {});
+} catch (e) {}
+
+function sv(inner, extra) { return '<svg class="cs ' + (extra || '') + '" viewBox="0 0 200 200" aria-hidden="true">' + inner + '</svg>'; }
+function borjSVG(cx, cy, r, col, sw) {
+  var o = '<g transform="translate(' + cx + ' ' + cy + ')" fill="none" stroke="' + col + '" stroke-width="' + sw + '" stroke-linecap="round"><circle r="' + r + '"/><circle r="' + (r * 0.12) + '" fill="' + col + '"/>', i;
+  for (i = 0; i < 7; i++) {
+    o += '<path transform="rotate(' + (i * 360 / 7).toFixed(1) + ')" d="M0 0 C ' + (r * .25) + ' ' + (-r * .1) + ' ' + (r * .62) + ' ' + (-r * .28) + ' ' + (r * .5) + ' ' + (-r * .78) +
+      ' C ' + (r * .62) + ' ' + (-r * .9) + ' ' + (r * .86) + ' ' + (-r * .78) + ' ' + (r * .9) + ' ' + (-r * .5) + '"/>';
+  }
+  return o + '</g>';
+}
+function towersSVG(fill) {
+  var o = '', t = [[10, 190, 30, 90], [48, 190, 24, 60], [128, 190, 34, 100], [172, 190, 24, 56]], i, a, w, h, b, x;
+  for (i = 0; i < t.length; i++) {
+    x = t[i][0]; b = t[i][1]; w = t[i][2]; h = t[i][3];
+    o += '<path d="M' + x + ' ' + b + ' L' + (x + 3) + ' ' + (b - h) + ' L' + (x + w / 2) + ' ' + (b - h - w * .8) + ' L' + (x + w - 3) + ' ' + (b - h) + ' L' + (x + w) + ' ' + b + 'Z" fill="' + fill + '"/>';
+  }
+  return o;
+}
+function burst(cx, cy, col, delay, n) {
+  var o = '<g transform="translate(' + cx + ' ' + cy + ')"><g class="fw" style="animation-delay:' + delay + 's" stroke="' + col + '" stroke-width="1.8" stroke-linecap="round">', i, a;
+  for (i = 0; i < n; i++) { a = i * 2 * Math.PI / n; o += '<path d="M' + (Math.cos(a) * 6).toFixed(1) + ' ' + (Math.sin(a) * 6).toFixed(1) + ' L' + (Math.cos(a) * 26).toFixed(1) + ' ' + (Math.sin(a) * 26).toFixed(1) + '"/>'; }
+  return o + '</g></g>';
+}
+
+/* თითო სცენა: tone = fear | joy | dry;  html(v) აბრუნებს სცენის შიგთავსს */
+var SC = {
+  eye: { tone: 'fear', html: function () {
+    var veins = '<path d="M20 100 Q50 92 70 98 M26 108 Q52 112 66 104 M180 100 Q150 92 130 98 M174 108 Q148 112 134 104" stroke="#9b1c1c" stroke-width="1.2" fill="none" opacity=".7"/>';
+    return sv('<defs><radialGradient id="ir" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#050202"/><stop offset=".38" stop-color="#050202"/><stop offset=".42" stop-color="#d49a2a"/><stop offset=".8" stop-color="#7a2a10"/><stop offset="1" stop-color="#1d0a05"/></radialGradient>' +
+      '<clipPath id="al"><path d="M8 100 Q100 14 192 100 Q100 186 8 100Z"/></clipPath></defs>' +
+      '<g class="lid"><path d="M8 100 Q100 14 192 100 Q100 186 8 100Z" fill="#e9e2cf"/><g clip-path="url(#al)">' + veins +
+      '<g class="look"><circle cx="100" cy="100" r="46" fill="url(#ir)"/><circle cx="86" cy="86" r="7" fill="#fff" opacity=".8"/></g></g>' +
+      '<path d="M8 100 Q100 14 192 100 Q100 186 8 100Z" fill="none" stroke="#000" stroke-width="3"/></g>', 'eye');
+  } },
+  storm: { tone: 'fear', html: function () {
+    return sv('<g class="bolt"><path d="M104 0 L88 62 L110 62 L82 128 L98 128 L72 190" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/></g>' + towersSVG('#0b0b0b') + '<rect x="0" y="186" width="200" height="14" fill="#0b0b0b"/>', 'storm');
+  } },
+  burn: { tone: 'fear', html: function () {
+    return '<div class="burnframe"><div class="burnimg">' + sv(borjSVG(100, 100, 70, '#d9d2bd', 4) + '<circle cx="100" cy="100" r="86" fill="none" stroke="#d9d2bd" stroke-width="2" stroke-dasharray="2 6"/>') + '</div><div class="burnhole"></div></div>';
+  } },
+  glitch: { tone: 'fear', html: function (v) {
+    return '<div class="glitchbox"><b class="g1">' + v + '</b><b class="g2">' + v + '</b><b class="g3">' + v + '</b><i></i><i></i><i></i></div>';
+  } },
+  leader: { tone: 'dry', html: function (v) {
+    return sv('<g fill="none" stroke="#ddd6c2" stroke-width="2.5"><circle cx="100" cy="100" r="86"/><circle cx="100" cy="100" r="66"/><path d="M100 6 V194 M6 100 H194"/></g>' +
+      '<g class="sweep"><path d="M100 100 L100 14 A86 86 0 0 1 186 100 Z" fill="#ddd6c2" opacity=".28"/></g>' +
+      '<text x="100" y="128" text-anchor="middle" font-size="96" font-weight="700" fill="#ddd6c2" font-family="Georgia,serif">' + v + '</text>', 'leader');
+  } },
+  stamp: { tone: 'dry', html: function (v, kind) {
+    var w = kind === 'win' ? 'დამტკიცებულია' : kind === 'lose' ? 'უარყოფილია' : 'გაითვალისწინეთ';
+    return '<div class="paper"><div class="paperlines"></div><div class="stampbox ' + (kind === 'win' ? 'ok' : '') + '">' + w + '</div></div>';
+  } },
+  iris: { tone: 'fear', html: function (v, kind) {
+    return '<div class="irisbox"><div class="irishole"><span>დასასრული</span></div></div>';
+  } },
+  curtain: { tone: 'joy', html: function () {
+    return '<div class="spot"></div>' + sv(borjSVG(100, 100, 62, '#f0c25a', 3.5), 'gold') + '<div class="curt l"></div><div class="curt r"></div>';
+  } },
+  sun: { tone: 'joy', html: function () {
+    return '<div class="rays"></div>' + sv(borjSVG(100, 100, 68, '#fff1c4', 4), 'spin gold');
+  } },
+  fire: { tone: 'joy', html: function () {
+    return sv('<rect width="200" height="200" fill="#120406"/>' + burst(50, 60, '#f0c25a', 0, 12) + burst(150, 50, '#ff6a4d', .35, 14) + burst(100, 90, '#fff1c4', .7, 16) + burst(34, 112, '#f0c25a', 1.05, 10) + burst(170, 108, '#fff1c4', 1.3, 12) + towersSVG('#050102') + '<rect x="0" y="186" width="200" height="14" fill="#050102"/>', 'fire');
+  } }
 };
-var WIN_SCENES = [
-  { e: [['👵', 'float'], ['🙏', 'pop']], bg: 'gold', cap: 'გაგიმართლა! ბებიამ ლოცვა გაგიმართლა.' },
-  { e: [['🥂', 'bounce'], ['🎤', 'zoom']], bg: 'wine', cap: 'რაუნდი შენია! ახლა ტოსტიც შეგიძლია თქვა.' },
-  { e: [['👏', 'bounce'], ['🏠', 'float']], bg: 'green', cap: 'გაგიმართლა! მეზობლებმა ბალკონიდან ტაში დაგიკრეს.' },
-  { e: [['🧔', 'wobble'], ['😎', 'pop']], bg: 'night', cap: 'შენ იგებ! ბიძაშვილმა თქვა, ეს ჩემი დამსახურებააო.' },
-  { e: [['🌤️', 'float'], ['😊', 'zoom']], bg: 'gold', cap: 'ბედმა გაგიღიმა. თბილისში ეს ამინდზე იშვიათია.' },
-  { e: [['🥩', 'bounce'], ['🔥', 'puff']], bg: 'wine', cap: 'მოიგე! მანგალზე მწვადიც შენთვის დადეს.' },
-  { e: [['💪', 'pop'], ['🏆', 'spin']], bg: 'gold', cap: 'რაუნდი შენია! ვინ თქვა, რომ ხინკალი მხოლოდ საჭმელია?' },
-  { e: [['🍀', 'spin'], ['🧿', 'wobble']], bg: 'green', cap: 'გაგიმართლა! თვალის ცემა არ მოგდის, ცხადია.' }
+
+var ROLL_POOL = {
+  1: [{ k: 'eye', cap: 'ერთი. ბედმა შენკენ გამოიხედა, და ეგ უკეთესს არაფერს ნიშნავს.' },
+      { k: 'storm', cap: 'ერთი. ცა შავდება, კოშკებიდან ვიღაც გიყურებს.' }],
+  2: [{ k: 'burn', cap: 'ორი. ფირი იწვის. იმედი მასთან ერთად.' },
+      { k: 'glitch', cap: 'ორი. სისტემა შეცდომას აფიქსირებს და ეს შენ ხარ.' }],
+  3: [{ k: 'leader', cap: 'სამი. ფირის დასაწყისი: ჯერ არაფერი გადაწყვეტილა, მაგრამ უკვე არ გრძელდება.' },
+      { k: 'stamp', cap: 'სამი. ბიუროკრატიამ თქვა: „განიხილება“. ანუ არასდროს.' }],
+  4: [{ k: 'iris', cap: 'ოთხი. დიაფრაგმა ვიწროვდება: რაღაც უნდა გადაწყდეს.' },
+      { k: 'leader', cap: 'ოთხი. დათვლა დაიწყო და მაყურებელი ამოსუნთქვას აგვიანებს.' }],
+  5: [{ k: 'curtain', cap: 'ხუთი. ფარდა იხსნება და სცენაზე ქულა შემოდის.' },
+      { k: 'sun', cap: 'ხუთი. ბორჯღალი ინთება. ეს კარგ ნიშანს ჰგავს.' }],
+  6: [{ k: 'fire', cap: 'ექვსი! ცაში ცეცხლი, სუფრაზე სიჩუმე. პატივი უნდა სცეს.' },
+      { k: 'sun', cap: 'ექვსი! მზე შენკენ ტრიალებს, ბედმაც დაამოწმა.' }]
+};
+var WIN_POOL = [
+  { k: 'sun', cap: 'გაუმარჯოს გამარჯვებულს! ტამადამ სიტყვა გადმოგცა.' },
+  { k: 'fire', cap: 'რაუნდი შენია! ცაში ბადრაგს ანთებენ.' },
+  { k: 'curtain', cap: 'შენ იგებ. მაყურებელი ფეხზე დგას, ბებია ტირის.' },
+  { k: 'stamp', cap: 'ბედმა თავისი ხელით დაამტკიცა: შენ იგებ.' },
+  { k: 'sun', cap: 'გილოცავ. ეს ის წუთია, ფილმის ბოლოს რომ უჩვენებენ.' },
+  { k: 'fire', cap: 'გაიმარჯვე! კოშკებზე ცეცხლის ბურთები ანთია.' }
 ];
-var LOSE_SCENES = [
-  { e: [['🧍', 'shake'], ['🚪', 'slide']], bg: 'old', old: true, cap: '„ეს რა ხდება?!“ — თქვა გმირმა და ისევ დამარცხდა.' },
-  { e: [['🕴️', 'wobble'], ['🌧️', 'float']], bg: 'old', old: true, cap: 'ძველ ფილმებში გმირი ყოველთვის იგებდა. აქ კი არა.' },
-  { e: [['🎩', 'spin'], ['🧔', 'shake']], bg: 'old', old: true, cap: 'მეორე სერია უკეთესი იქნება... ალბათ.' },
-  { e: [['📺', 'shake'], ['😢', 'float']], bg: 'old', old: true, cap: 'ამ სცენის გადაღებისას არავინ დაზარალებულა, გარდა შენი ამბიციისა.' },
-  { e: [['🎬', 'pop'], ['🤷', 'wobble']], bg: 'old', old: true, cap: 'რეჟისორმა თქვა: „კარგი დუბლია!“ და შენ მაინც წააგე.' },
-  { e: [['🎻', 'wobble'], ['😭', 'bounce']], bg: 'old', old: true, cap: 'ორკესტრი სევდიან მელოდიას უკრავს. მაყურებელი ტირის (სიცილით).' },
-  { e: [['👴', 'bounce'], ['📺', 'zoom']], bg: 'old', old: true, cap: 'სადღაც ბაბუა ტელევიზორთან ამბობს: „ეგ ჩვენი გმირი არ არის“.' },
-  { e: [['🌅', 'float'], ['🚶', 'slide']], bg: 'old', old: true, cap: 'ბოლო კადრი: გმირი მზის ჩასვლისკენ მიდის. ფსონი კი სხვამ წაიღო.' }
+var LOSE_POOL = [
+  { k: 'eye', cap: 'დამარცხდი. ბედი ახლა შენს სახეს ჩაგიფიქრდა.' },
+  { k: 'storm', cap: 'წააგე. ქუხილის შემდეგ სიჩუმე უფრო საშიშია.' },
+  { k: 'burn', cap: 'ფირი დაიწვა. ამ რაუნდის კადრები აღარ არსებობს.' },
+  { k: 'iris', cap: 'დასასრული. ტიტრები უკვე შენს გვარს აჩვენებს.' },
+  { k: 'glitch', cap: 'შეცდომა 404: გამარჯვება ვერ მოიძებნა.' },
+  { k: 'stamp', cap: 'განაცხადი უარყოფილია. მეორე ფანჯარაში სცადე.' }
 ];
-var bags = {};
-function drawScene(key, pool) {
-  var b = bags[key], i, j, t;
+
+var cineBags = {};
+function pickFrom(key, pool) {
+  var b = cineBags[key], i, j, t;
   if (!b || !b.length) {
     b = [];
     for (i = 0; i < pool.length; i++) b.push(i);
     for (i = b.length - 1; i > 0; i--) { j = Math.floor(Math.random() * (i + 1)); t = b[i]; b[i] = b[j]; b[j] = t; }
-    bags[key] = b;
+    cineBags[key] = b;
   }
   return pool[b.pop()];
 }
-function sceneHTML(sc) {
-  var out = '<div class="scene bg-' + sc.bg + (sc.old ? ' oldfilm' : '') + '">', i;
-  for (i = 0; i < sc.e.length; i++) out += '<span class="an-' + sc.e[i][1] + '">' + sc.e[i][0] + '</span>';
-  return out + '</div>';
+
+var Cine = (function () {
+  var queue = [], playing = false, timer = null, el = null, vid = null;
+  function box() { return el || (el = $('cine')); }
+  function finish() {
+    clearTimeout(timer);
+    var b = box();
+    b.hidden = true; b.className = 'cine'; $('cineStage').innerHTML = ''; $('cineCap').textContent = ''; $('cineTag').textContent = '';
+    playing = false;
+    if (queue.length) setTimeout(next, 120);
+  }
+  function show(item) {
+    var b = box(), sc = SC[item.k], tone = sc ? sc.tone : 'dry', dur = item.long ? 3000 : 2200;
+    playing = true;
+    b.hidden = false;
+    b.className = 'cine tone-' + tone + ' k-' + item.k + (item.long ? ' long' : '');
+    void b.offsetWidth;
+    var useClip = (item.clip && item.clip.length) ? item.clip[Math.floor(Math.random() * item.clip.length)] : null;
+    var stageEl = $('cineStage');
+    if (useClip) {
+      var gif = /\.gif$/i.test(useClip), m = document.createElement(gif ? 'img' : 'video');
+      m.className = 'clipmedia';
+      m.src = useClip;
+      if (!gif) { m.muted = true; m.autoplay = true; m.playsInline = true; m.setAttribute('playsinline', ''); m.loop = false;
+        m.onended = function () { clearTimeout(timer); timer = setTimeout(finish, 250); }; }
+      m.onerror = function () { stageEl.innerHTML = sc ? sc.html(item.v, item.kind) : ''; };
+      stageEl.replaceChildren(m);
+      dur = 4200;
+    } else {
+      stageEl.innerHTML = sc ? sc.html(item.v, item.kind) : '';
+    }
+    $('cineCap').textContent = item.cap || '';
+    $('cineTag').textContent = item.tag || '';
+    if (tone === 'fear') { Sound.play('boom'); Sound.play('sting'); try { if (navigator.vibrate) navigator.vibrate([80, 40, 120]); } catch (e) {} }
+    else if (tone === 'joy') Sound.play('fanfare');
+    else Sound.play('reel');
+    clearTimeout(timer);
+    timer = setTimeout(finish, dur);
+  }
+  function next() {
+    if (playing) return;
+    var it = queue.shift();
+    if (it) show(it);
+  }
+  return {
+    play: function (item) { if (queue.length > 3) queue.shift(); queue.push(item); next(); },
+    skip: function () { if (playing) finish(); },
+    cancel: function () { queue = []; if (playing) finish(); },
+    busy: function () { return playing || queue.length > 0; }
+  };
+})();
+
+function rollReaction(value) {
+  var sc = pickFrom('v' + value, ROLL_POOL[value] || ROLL_POOL[3]);
+  Cine.play({ k: sc.k, cap: sc.cap, v: value, kind: 'roll', clip: CLIPS.roll, tag: 'კამათელი · ' + value });
 }
-function showScene(sceneId, capId, sc) {
-  $(sceneId).innerHTML = sc ? sceneHTML(sc) : '';
-  $(capId).textContent = sc ? sc.cap : '';
-  $(capId).classList.toggle('inter', !!(sc && sc.old));
-}
-function clearReaction() { showScene('reactScene', 'reactCap', null); }
-function rollReaction(value) { showScene('reactScene', 'reactCap', drawScene('v' + value, ROLL_SCENES[value] || ROLL_SCENES[3])); }
 function roundResultScene(mine) {
-  showScene('reactScene', 'reactCap', mine ? drawScene('win', WIN_SCENES) : drawScene('lose', LOSE_SCENES));
-  Sound.play(mine ? 'boing' : 'wah');
+  var sc = pickFrom(mine ? 'win' : 'lose', mine ? WIN_POOL : LOSE_POOL);
+  Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, tag: mine ? 'რაუნდი შენია' : 'რაუნდი წაგებულია' });
+}
+function finalScene(mine) {
+  var sc = pickFrom(mine ? 'win' : 'lose', mine ? WIN_POOL : LOSE_POOL);
+  Cine.cancel();
+  Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, long: true, tag: mine ? 'გამარჯვება' : 'დამარცხება' });
 }
 
 /* კამათლის ნახატი */
@@ -434,10 +556,6 @@ function eventText(ev) {
   var mine = (ev.who === role);
   switch (ev.kind) {
     case 'bite': return mine ? 'ჩაკბიჩე! მოწინააღმდეგეს −1 ნაჭერი.' : 'მოწინააღმდეგემ ჩაკბიჩა! შენ −1 ნაჭერი.';
-    case 'risky_hit': return mine ? 'გაგიმართლა! მოწინააღმდეგეს −2 ნაჭერი.' : 'მოწინააღმდეგეს გაუმართლა! შენ −2 ნაჭერი.';
-    case 'risky_miss': return mine ? 'ვერ მოახერხე, ცხელი ბულიონი დაიღვარა.' : 'მოწინააღმდეგეს ვერ გამოუვიდა.';
-    case 'defend': return mine ? 'ხინკალი დაიფარე.' : 'მოწინააღმდეგემ ხინკალი დაიფარა.';
-    case 'blocked': return mine ? 'შენი ნაკბენი დაიბლოკა!' : 'დაიცავი! ნაკბენი დაიბლოკა.';
     case 'sip': return mine ? 'ბულიონი დალიე, არაფერი დაიღვარა.' : 'მოწინააღმდეგემ ბულიონი დალია.';
     case 'locked': return mine ? 'არჩევანი მიღებულია.' : 'მოწინააღმდეგემ ხინკლის აღების წესი აირჩია.';
     case 'ready': return 'ორივემ ხინკალი სწორად აიღო. გააგორეთ კამათელი!';
@@ -474,8 +592,7 @@ function diceText(s, me) {
 function fillPanel(k, r) {
   var s = state, hp = s.hp[r], pips = $('pips' + k), i;
   $('name' + k).textContent = s.names[r];
-  $('kh' + k).innerHTML = khinkaliSVG(hp, s.shield[r], k);
-  $('shield' + k).hidden = !s.shield[r];
+  $('kh' + k).innerHTML = khinkaliSVG(hp, false, k);
   $('count' + k).textContent = hp + ' / ' + MAX + ' ნაჭერი' + (s.stake > 0 ? ' · ' + s.bal[r] + ' ხინკალი ბანკში' : '');
   var kids = [];
   for (i = 0; i < MAX; i++) {
@@ -512,7 +629,7 @@ function flushReaction() {
   if (pr.done) {
     timers.react2 = setTimeout(function () {
       if (state && state.phase === 'play' && state.step === 'act') roundResultScene(state.turn === role);
-    }, 1500);
+    }, 600);
   }
 }
 function animateDie(x) {
@@ -534,7 +651,7 @@ function renderStage() {
   $('diceStage').hidden = !on;
   $('appMain').classList.toggle('staged', on);
   if (!on) return;
-  if (s.step === 'roll' && s.dice.a === null && s.dice.b === null && !anim.a && !anim.b) { pendingReact = null; clearReaction(); }
+  if (s.step === 'roll' && s.dice.a === null && s.dice.b === null && !anim.a && !anim.b) { pendingReact = null; }
   $('skipHint').hidden = !holdStage;
   var d = (holdStage && heldDice) ? heldDice : s.dice;
   function val(x) { return anim[x] ? faces[x] : d[x]; }
@@ -587,10 +704,9 @@ function render() {
   var can = mineTurn && net;
   var needSip = s.broth[me] === 'pending';
   $('actBite').disabled = !can;
-  $('actRisky').disabled = !can;
-  $('actDefend').disabled = !can || s.shield[me];
   $('actSip').disabled = !can;
   $('actSip').hidden = !needSip;
+  $('actBite').hidden = needSip;
   $('brothHint').hidden = !(needSip && mineTurn);
   var done = !!s.over || closed;
   $('actions').hidden = !playing;
@@ -609,9 +725,10 @@ function render() {
     var key = s.game + ':' + s.n;
     if (resShownFor !== key) {
       resShownFor = key;
-      showScene('resScene', 'resCap', (s.over === me) ? drawScene('win', WIN_SCENES) : drawScene('lose', LOSE_SCENES));
+      $('resCap').textContent = (s.over === me) ? 'ტიტრები: შენ იგებ.' : 'ტიტრები: შენ წააგე.';
+      setTimeout(function () { if (state && state.over && !closed) finalScene(s.over === me); }, 450);
     }
-  } else if (!s.over) { resShownFor = ''; showScene('resScene', 'resCap', null); }
+  } else if (!s.over) { resShownFor = ''; $('resCap').textContent = ''; }
   updateBanner();
   renderStage();
 }
@@ -645,7 +762,7 @@ function setState(next) {
     holdStage = true;
     heldDice = { a: next.dice.a, b: next.dice.b };
     clearTimeout(timers.hold);
-    timers.hold = setTimeout(function () { holdStage = false; render(); }, 4400);
+    timers.hold = setTimeout(function () { holdStage = false; render(); }, 5600);
   }
   render();
   maybeBotTurn();
@@ -657,7 +774,7 @@ function maybeBotTurn() {
   if (mode !== 'bot' || !state || state.over) return;
   if (state.phase === 'choose' && !state.picked.b) timers.bot = setTimeout(botPick, 800 + Math.random() * 600);
   else if (state.phase === 'play' && state.step === 'roll' && state.roller === 'b') timers.bot = setTimeout(botRoll, 1100 + Math.random() * 500);
-  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 4700 + Math.random() * 600);
+  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 6000 + Math.random() * 600);
 }
 function botPick() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'choose' || state.picked.b) return;
@@ -671,12 +788,7 @@ function botRoll() {
 }
 function botMove() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'act' || state.turn !== 'b') return;
-  var r = Math.random(), canDef = !state.shield.b, act;
-  if (state.broth.b === 'pending') act = 'sip';
-  else if (canDef && state.hp.b <= 2 && r < 0.45) act = 'defend';
-  else if (r < 0.55) act = 'bite';
-  else if (r < 0.8) act = 'risky';
-  else act = canDef ? 'defend' : 'bite';
+  var act = (state.broth.b === 'pending') ? 'sip' : 'bite';
   var nx = R.reduceMove(state, act, Math.random);
   if (nx) setState(nx);
 }
@@ -821,7 +933,6 @@ function onServer(m) {
 function act(a) {
   var s = state;
   if (!s || s.over || s.phase !== 'play' || s.step !== 'act' || closed || pending || s.turn !== role) return;
-  if (a === 'defend' && s.shield[role]) return;
   if (a === 'sip' && s.broth[role] !== 'pending') return;
   if (mode === 'bot') {
     var nx = R.reduceMove(s, a, Math.random);
@@ -911,8 +1022,7 @@ $('cancelBtn').onclick = leaveGame;
 $('leaveBtn').onclick = leaveGame;
 $('homeBtn').onclick = leaveGame;
 $('actBite').onclick = function () { act('bite'); };
-$('actDefend').onclick = function () { act('defend'); };
-$('actRisky').onclick = function () { act('risky'); };
+$('cine').onclick = function () { Cine.skip(); };
 $('actSip').onclick = function () { act('sip'); };
 $('toolHand').onclick = function () { chooseMethod('hand', null); };
 $('rollBtn').onclick = rollDice;

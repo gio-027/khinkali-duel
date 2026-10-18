@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ხინკლის დუელი</title>
 <meta name="description" content="ორი მოთამაშის ონლაინ თამაში: ვისი ხინკალიც პირველი გაქრება, ის წააგებს.">
-<meta name="theme-color" content="#0A0712" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#0A0712" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12060A" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#12060A" media="(prefers-color-scheme: light)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ხინკალი">
@@ -73,10 +73,8 @@
         <li><b>როგორ შეჭამ:</b> თამაშამდე უნდა აირჩიო. ხელით ხინკალს ნებისმიერ ადგილას დაიჭერ. ჩანგალი თავში (ზედა კვანძი) უნდა ჩაარჭო, მუცელში ჩარჭობა წაგებაა. დანა-ჩანგალი მაშინვე წაგებაა.</li>
         <li><b>კამათელი:</b> ყოველ რაუნდზე ჯერ ერთი მოთამაშე აგორებს, მერე მეორე. ვისაც მეტი მოუვა, ის აკეთებს სვლას. ფრეზე თავიდან.</li>
         <li>თითო ხინკალს 5 ნაჭერი აქვს.</li>
-        <li><b>ბულიონი:</b> პირველი ნაკბენის შემდეგ შენი შემდეგი სვლა უნდა იყოს ბულიონის დალევა, თორემ დაიღვრება და წააგებ.</li>
-        <li><b>ჩაკბიჩე:</b> მოწინააღმდეგის ხინკალს აკლდება 1 ნაჭერი.</li>
-        <li><b>დაიცავი:</b> მოწინააღმდეგის შემდეგი ნაკბენი დაიბლოკება.</li>
-        <li><b>შეჭამე ფარულად:</b> 50% შანსია, რომ 2 ნაჭერი დააკლდეს, და 50%, რომ არაფერი მოხდეს.</li>
+        <li><b>ბულიონი:</b> პირველი ნაკბენის შემდეგ ღილაკი გადაიქცევა „დალიე ბულიონად“. თუ არ დალიე, ბულიონი დაიღვრება და წააგებ.</li>
+        <li><b>ჩაკბიჩე:</b> ერთადერთი ღილაკია. მოწინააღმდეგის ხინკალს აკლდება 1 ნაჭერი.</li>
         <li>ვისი ხინკალიც მთლიანად გაქრება, ის წააგებს. გამარჯვებული იღებს ფსონის ორმაგს, წაგებული კარგავს ფსონს.</li>
       </ul>
     </details>
@@ -113,7 +111,7 @@
     <div class="side" id="pOpp">
       <div class="kh" id="khOpp"></div>
       <div>
-        <div class="who"><strong id="nameOpp"></strong><span class="tag shield" id="shieldOpp" hidden>დაცულია</span></div>
+        <div class="who"><strong id="nameOpp"></strong></div>
         <div class="pips" id="pipsOpp"></div>
         <div class="count" id="countOpp"></div>
       </div>
@@ -128,7 +126,7 @@
     <div class="side" id="pMe">
       <div class="kh" id="khMe"></div>
       <div>
-        <div class="who"><strong id="nameMe"></strong><span class="tag">შენ</span><span class="tag shield" id="shieldMe" hidden>დაცულია</span></div>
+        <div class="who"><strong id="nameMe"></strong><span class="tag">შენ</span></div>
         <div class="pips" id="pipsMe"></div>
         <div class="count" id="countMe"></div>
       </div>
@@ -155,13 +153,10 @@
     <div class="actions" id="actions">
       <button type="button" class="act primary sip" id="actSip" hidden><b>დალიე ბულიონი</b><small>სხვა სვლაზე წააგებ</small></button>
       <button type="button" class="act primary" id="actBite"><b>ჩაკბიჩე</b><small>−1 ნაჭერი</small></button>
-      <button type="button" class="act" id="actDefend"><b>დაიცავი</b><small>ბლოკავს შემდეგ ნაკბენს</small></button>
-      <button type="button" class="act risky" id="actRisky"><b>შეჭამე ფარულად</b><small>50% შანსი, −2 ნაჭერი</small></button>
     </div>
 
     <div class="card result" id="result" hidden>
-      <div id="resScene" class="reactscene" aria-hidden="true"></div>
-      <p class="reactcap" id="resCap"></p>
+      <p class="reactcap inter" id="resCap"></p>
       <h2 id="resTitle"></h2>
       <p class="lede" id="resSub"></p>
       <div class="btns">
@@ -187,12 +182,17 @@
         <div class="die" id="dieMe"></div>
       </div>
     </div>
-    <div id="reactScene" class="reactscene" aria-hidden="true"></div>
-    <p class="reactcap" id="reactCap"></p>
     <p class="dicemsg" id="diceMsg" aria-live="polite"></p>
     <button type="button" class="btn primary rollbtn" id="rollBtn">🎲 გააგორე კამათელი</button>
     <p class="skiphint" id="skipHint" hidden>შეეხე გასაგრძელებლად</p>
   </div>
+</div>
+<div class="cine" id="cine" hidden role="presentation">
+  <div class="cinestage" id="cineStage"></div>
+  <div class="cinetag" id="cineTag"></div>
+  <p class="cinecap" id="cineCap"></p>
+  <div class="cinefx"><i class="grain"></i><i class="scratch"></i><i class="vig"></i><i class="flash"></i></div>
+  <div class="cineskip">შეეხე გასახსნელად</div>
 </div>
 <script src="rules.js"></script>
 <script src="app.js"></script>

@@ -142,11 +142,11 @@
     return next;
   }
 
-  /* act: 'bite' | 'defend' | 'risky' | 'sip'. მოქმედებს ის, ვინც კამათელი მოიგო (s.turn).
+  /* act: 'bite' | 'sip'. მოქმედებს ის, ვინც კამათელი მოიგო (s.turn).
      აბრუნებს ახალ მდგომარეობას ან null-ს, თუ სვლა დაუშვებელია. */
   function reduceMove(s, act, rng) {
     if (s.over || s.phase !== 'play' || s.step !== 'act') return null;
-    if (act !== 'bite' && act !== 'defend' && act !== 'risky' && act !== 'sip') return null;
+    if (act !== 'bite' && act !== 'sip') return null;
     rng = rng || Math.random;
     var who = s.turn;
     var other = opp(who);
@@ -166,22 +166,10 @@
       if (s.broth[who] !== 'pending') return null;
       next.broth[who] = 'done';
       kind = 'sip';
-    } else if (act === 'defend') {
-      if (s.shield[who]) return null;
-      next.shield[who] = true;
-      kind = 'defend';
     } else {
-      dmg = act === 'bite' ? 1 : (rng() < 0.5 ? 2 : 0);
-      if (dmg === 0) {
-        kind = 'risky_miss';
-      } else if (s.shield[other]) {
-        next.shield[other] = false;
-        kind = 'blocked';
-        dmg = 0;
-      } else {
-        next.hp[other] = Math.max(0, s.hp[other] - dmg);
-        kind = act === 'bite' ? 'bite' : 'risky_hit';
-      }
+      dmg = 1;
+      next.hp[other] = Math.max(0, s.hp[other] - dmg);
+      kind = 'bite';
       if (s.broth[who] === 'none') next.broth[who] = 'pending';
     }
 

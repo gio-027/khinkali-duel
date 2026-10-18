@@ -61,22 +61,15 @@ const Rules = require('./rules.js');
   assert.strictEqual(t.hp.b, 4); assert.strictEqual(t.broth.a, 'pending');
   assert.strictEqual(t.step, 'roll'); assert.strictEqual(t.roller, 'b');
   const mine = Object.assign({}, t, { step: 'act', turn: 'a' });
-  const spill = Rules.reduceMove(mine, 'defend', seq(0.5));
+  const spill = Rules.reduceMove(mine, 'bite', seq(0.5));
   assert.strictEqual(spill.over, 'b'); assert.strictEqual(spill.why, 'spill'); assert.deepStrictEqual(spill.bal, { a: 8, b: 14 });
   const sip = Rules.reduceMove(mine, 'sip', seq(0.5));
   assert.strictEqual(sip.broth.a, 'done'); assert.strictEqual(sip.over, null);
   assert.strictEqual(Rules.reduceMove(s, 'sip', seq(0.5)), null, 'cannot sip without a bite');
 
-  // დაცვა ბლოკავს ერთ ნაკბენს
-  let d = Rules.reduceMove(ready(0), 'defend', seq(0.5));
-  d = Object.assign({}, d, { step: 'act', turn: 'b' });
-  d = Rules.reduceMove(d, 'bite', seq(0.5));
-  assert.strictEqual(d.hp.a, 5); assert.strictEqual(d.shield.a, false); assert.strictEqual(d.ev.kind, 'blocked');
-
-  // რისკიანი სვლა
-  assert.strictEqual(Rules.reduceMove(ready(0), 'risky', seq(0.2)).hp.b, 3);
-  const miss = Rules.reduceMove(ready(0), 'risky', seq(0.7));
-  assert.strictEqual(miss.hp.b, 5); assert.strictEqual(miss.ev.kind, 'risky_miss');
+  // ძველი სვლები (დაცვა, რისკი) აღარ არსებობს
+  assert.strictEqual(Rules.reduceMove(ready(0), 'defend', seq(0.5)), null);
+  assert.strictEqual(Rules.reduceMove(ready(0), 'risky', seq(0.2)), null);
 
   // გამარჯვება: ფსონის ორმაგი
   let w = ready(2);
@@ -250,7 +243,8 @@ async function main() {
     assert.strictEqual(A.msgs.filter((m) => m.t === 'state').length, 0);
     console.log('ok  full game and rematch');
 
-    // გასვლა
+    // გასვლა (სერვერი სწრაფ შეტყობინებებს ზღუდავს, ამიტომ ვაცდით)
+    await sleep(5200);
     A.send({ t: 'leave' });
     await B3.type('closed');
     const D = await client();

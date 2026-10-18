@@ -154,6 +154,14 @@ var Sound = (function () {
       [[392, 0], [523, .14], [659, .28], [784, .42], [1047, .62]].forEach(function (n) { tone(n[0], t + n[1], n[0] === 1047 ? .8 : .22, 'sawtooth', 0.1); tone(n[0] * 2, t + n[1], .2, 'triangle', 0.06); });
     },
     reel: function (t) { for (var i = 0; i < 9; i++) noise(t + i * 0.045, 0.03, 0.35, 1800 + (i % 2) * 900, 2); tone(110, t, 0.5, 'sine', 0.12, 80); },
+    laugh: function (t) {
+      for (var i = 0; i < 7; i++) {
+        var f = 190 - i * 9, tt = t + i * 0.2;
+        tone(f, tt, 0.15, 'sawtooth', 0.16, f * 0.72); tone(f * 2.6, tt, 0.12, 'square', 0.04, f * 1.9);
+        noise(tt, 0.1, 0.22, 1100, 1.4);
+      }
+      tone(85, t + 1.5, 0.7, 'sawtooth', 0.12, 55);
+    },
     boing: function (t) { tone(220, t, 0.28, 'sine', 0.22, 760); tone(760, t + 0.28, 0.12, 'triangle', 0.14, 520); },
     wah: function (t) {
       [[392, 370], [370, 349], [349, 330], [330, 247]].forEach(function (f, i) {
@@ -423,50 +431,173 @@ var SC = {
   } },
   fire: { tone: 'joy', html: function () {
     return sv('<rect width="200" height="200" fill="#120406"/>' + burst(50, 60, '#f0c25a', 0, 12) + burst(150, 50, '#ff6a4d', .35, 14) + burst(100, 90, '#fff1c4', .7, 16) + burst(34, 112, '#f0c25a', 1.05, 10) + burst(170, 108, '#fff1c4', 1.3, 12) + towersSVG('#050102') + '<rect x="0" y="186" width="200" height="14" fill="#050102"/>', 'fire');
-  } }
+  } },
+  /* ---- მონსტრები: ყველა ორიგინალია ---- */
+  mA: { tone: 'fear', html: function () {
+    var teeth = '', i;
+    for (i = 0; i < 7; i++) teeth += '<path d="M' + (46 + i * 15) + ' 128 l7 22 l7 -22z" fill="#f4efe0"/>';
+    var low = '';
+    for (i = 0; i < 6; i++) low += '<path d="M' + (53 + i * 15) + ' 178 l7 -20 l7 20z" fill="#f4efe0"/>';
+    return sv('<defs><radialGradient id="eg"><stop offset="0" stop-color="#fff58a"/><stop offset="1" stop-color="#ff9d00"/></radialGradient></defs>' +
+      '<g class="mon"><path d="M16 200 C6 90 46 22 100 22 C154 22 194 90 184 200Z" fill="#1d0b14"/>' +
+      '<path d="M50 44 L22 -8 L76 30Z M150 44 L178 -8 L124 30Z" fill="#35121f"/>' +
+      '<g class="eyes"><path d="M42 84 Q62 62 86 82 Q64 96 42 84Z" fill="url(#eg)"/><path d="M158 84 Q138 62 114 82 Q136 96 158 84Z" fill="url(#eg)"/><rect x="60" y="74" width="5" height="16" rx="2" fill="#000"/><rect x="135" y="74" width="5" height="16" rx="2" fill="#000"/></g>' +
+      '<path d="M34 124 Q100 150 166 124 L170 182 Q100 210 30 182Z" fill="#5a0612"/>' + teeth + low +
+      '<g class="jaw"><path d="M70 160 Q100 190 130 160 Q100 172 70 160Z" fill="#d4505f"/></g></g>', 'mon');
+  } },
+  mB: { tone: 'fear', html: function () {
+    var fangs = '<path d="M58 134 l8 26 l8 -26z M126 134 l8 26 l8 -26z" fill="#f4efe0"/>';
+    return sv('<g class="mon"><circle cx="100" cy="104" r="84" fill="#2c1346"/><path d="M40 52 L26 8 L66 36Z M160 52 L174 8 L134 36Z" fill="#43205f"/>' +
+      '<circle cx="100" cy="86" r="42" fill="#f3ead2"/><g class="look"><circle cx="100" cy="86" r="24" fill="#c4161f"/><circle cx="100" cy="86" r="11" fill="#000"/></g>' +
+      '<path d="M30 128 Q100 180 170 128 Q100 150 30 128Z" fill="#12020a"/>' + fangs + '<path class="tongue" d="M86 150 q14 40 28 0z" fill="#e0536a"/></g>', 'mon');
+  } },
+  mC: { tone: 'fear', html: function () {
+    var pos = [[50, 70, 14], [98, 52, 20], [152, 72, 14], [34, 108, 9], [100, 100, 12], [166, 110, 9], [72, 92, 8]], o = '', i;
+    for (i = 0; i < pos.length; i++) o += '<g class="blink" style="animation-delay:' + (i * 0.23).toFixed(2) + 's"><circle cx="' + pos[i][0] + '" cy="' + pos[i][1] + '" r="' + pos[i][2] + '" fill="#f6efd4"/><circle cx="' + (pos[i][0] + 2) + '" cy="' + pos[i][1] + '" r="' + (pos[i][2] * .45) + '" fill="#b10d1a"/></g>';
+    var teeth = '';
+    for (i = 0; i < 9; i++) teeth += '<path d="M' + (36 + i * 16) + ' 140 l8 20 l8 -20z" fill="#f4efe0"/>';
+    return sv('<g class="mon"><path d="M10 200 C0 110 20 30 100 28 C180 30 200 110 190 200Z" fill="#14110a"/>' + o +
+      '<path d="M26 138 Q100 118 174 138 Q176 190 100 196 Q24 190 26 138Z" fill="#4a0510"/>' + teeth + '</g>', 'mon');
+  } },
+  /* ---- ფრენა ---- */
+  wing: { tone: 'joy', html: function () {
+    var cl = '<g class="cloud" fill="#fff4d6" opacity=".7"><ellipse cx="30" cy="40" rx="24" ry="8"/><ellipse cx="160" cy="26" rx="28" ry="9"/><ellipse cx="120" cy="150" rx="22" ry="7"/></g>';
+    return sv('<rect width="200" height="200" fill="#2a1830"/>' + cl +
+      '<path d="M0 200 L40 150 L80 180 L130 130 L200 190 L200 200Z" fill="#0d0509"/>' +
+      '<g class="fly"><path d="M20 96 L96 78 L96 104 L26 120Z" fill="#e8dcc0" stroke="#3b2a18" stroke-width="2.5"/><path d="M180 96 L104 78 L104 104 L174 120Z" fill="#e8dcc0" stroke="#3b2a18" stroke-width="2.5"/>' +
+      '<path d="M40 100 L90 90 M62 108 L92 98 M160 100 L110 90 M138 108 L108 98" stroke="#7a5a30" stroke-width="2"/>' +
+      '<path d="M96 80 V108 M104 80 V108" stroke="#3b2a18" stroke-width="3"/>' +
+      '<circle cx="100" cy="116" r="8" fill="#14070a" stroke="#d9a441" stroke-width="2"/><path d="M100 124 V150 M100 132 L88 142 M100 132 L112 142 M100 150 L92 168 M100 150 L108 168" stroke="#14070a" stroke-width="5" stroke-linecap="round"/><path d="M92 114 q-16 4 -22 14" stroke="#a01220" stroke-width="3" fill="none" class="scarf"/></g>' +
+      '<g stroke="#fff4d6" stroke-width="2" opacity=".6"><path d="M4 70 h24 M0 90 h18 M8 130 h28"/></g>', 'flyscene');
+  } },
+  /* ---- ხატი სანთლებით ---- */
+  icon: { tone: 'dry', html: function () {
+    return sv('<rect width="200" height="200" fill="#1a0b0b"/><path d="M40 190 V80 Q40 20 100 20 Q160 20 160 80 V190Z" fill="#2a1410" stroke="#d9a441" stroke-width="4"/>' +
+      '<g class="gold">' + borjSVG(100, 78, 34, '#f0c25a', 2.4) + '</g><circle cx="100" cy="78" r="18" fill="#3a2418"/><path d="M62 190 Q64 128 100 118 Q136 128 138 190Z" fill="#3a2418"/>' +
+      '<g class="candle"><rect x="20" y="150" width="9" height="40" fill="#efe3c0"/><path class="flame" d="M24.5 138 q-7 10 0 14 q7 -4 0 -14z" fill="#ffb02e"/></g>' +
+      '<g class="candle" style="animation-delay:.3s"><rect x="171" y="150" width="9" height="40" fill="#efe3c0"/><path class="flame" d="M175.5 138 q-7 10 0 14 q7 -4 0 -14z" fill="#ffb02e"/></g>', 'icon');
+  } },
+  /* ---- კინოტიტრი ---- */
+  card: { tone: 'dry', html: function (v, kind, item) {
+    return '<div class="tcard"><div class="tc-in"><span class="tc-big">' + ((item && item.big) || '') + '</span></div></div>';
+  } },
 };
 
-var ROLL_POOL = {
-  1: [{ k: 'eye', cap: 'ერთი. ბედმა შენკენ გამოიხედა, და ეგ უკეთესს არაფერს ნიშნავს.' },
-      { k: 'storm', cap: 'ერთი. ცა შავდება, კოშკებიდან ვიღაც გიყურებს.' }],
-  2: [{ k: 'burn', cap: 'ორი. ფირი იწვის. იმედი მასთან ერთად.' },
-      { k: 'glitch', cap: 'ორი. სისტემა შეცდომას აფიქსირებს და ეს შენ ხარ.' }],
-  3: [{ k: 'leader', cap: 'სამი. ფირის დასაწყისი: ჯერ არაფერი გადაწყვეტილა, მაგრამ უკვე არ გრძელდება.' },
-      { k: 'stamp', cap: 'სამი. ბიუროკრატიამ თქვა: „განიხილება“. ანუ არასდროს.' }],
-  4: [{ k: 'iris', cap: 'ოთხი. დიაფრაგმა ვიწროვდება: რაღაც უნდა გადაწყდეს.' },
-      { k: 'leader', cap: 'ოთხი. დათვლა დაიწყო და მაყურებელი ამოსუნთქვას აგვიანებს.' }],
-  5: [{ k: 'curtain', cap: 'ხუთი. ფარდა იხსნება და სცენაზე ქულა შემოდის.' },
-      { k: 'sun', cap: 'ხუთი. ბორჯღალი ინთება. ეს კარგ ნიშანს ჰგავს.' }],
-  6: [{ k: 'fire', cap: 'ექვსი! ცაში ცეცხლი, სუფრაზე სიჩუმე. პატივი უნდა სცეს.' },
-      { k: 'sun', cap: 'ექვსი! მზე შენკენ ტრიალებს, ბედმაც დაამოწმა.' }]
+var LOW_CAPS = [
+  'ჰა-ჰა-ჰა! ეს ქულა დაგცინის და მე ვუერთდები.',
+  'ასეთი ქულა მხოლოდ საშიშ სიზმარში გვხვდება.',
+  'ბედმა მონსტრი გამოგიგზავნა. ქულა კი თავად დაგაკავშირა.',
+  'ნუ გეშინია. უბრალოდ ცუდი ქულაა. და ცუდი მეგობრებიც.',
+  'ამ ქულით ხინკალს ნახევრადაც ვერ შეჭამ.',
+  'კამათელმა შენზე ხმამაღლა გაიცინა. ახლა მე ვიცინი.',
+  'ბნელში ვიღაც ტაშს გიკრავს. შენ არა, მოწინააღმდეგეს.',
+  'მცირე ქულა, დიდი სიჩუმე. ერთ-ერთი ჩვენგანი იცინის.',
+  'ბედმა ტელეფონი გამორთო. ქულაც გაქრა.',
+  'ძალიან ცუდი გაგორებაა. ჩვენც კი შეგვეცოდე.',
+  'შენს ქულას მეზობლებიც გაიგებენ და გაიცინებენ.',
+  'ხედავ? ეს ისაა, რასაც ბებია „ცუდი თვალი“ ეძახდა.',
+  'ამ ქულას ტამადაც კი ვერ მოიმარჯვებს.',
+  'ახლა ყველაფერი ჩემზეა დამოკიდებული. და მე არ შეგიბრალებ.'
+];
+var MID_CAPS = [
+  'საშუალო ქულა: არც ტოსტი, არც სადღეგრძელო.',
+  'ბედი ჯერ ფიქრობს. შენც იფიქრე.',
+  'ეს ქულა ისე წყნარია, როგორც შენობის კრება ორშაბათს.',
+  'სახელმწიფო კომისია განიხილავს შენს ქულას.',
+  'ჩვენი ქუჩის მარშრუტკასავით: მოდის, მაგრამ არ ჩანს, სად.',
+  'სუფრა ჯერ არ დამდგარა, ტამადა ჩუმადაა.',
+  'ბედი ჩაის სვამს და გიყურებს.',
+  'ცუდი არაა. კარგიც არა. ქართული „ნორმალურია“.',
+  'ეს ქულა ბიუროკრატიის გავლით უნდა დამტკიცდეს.',
+  'კადრი გაჩერდა. ფირი ელოდება გაგრძელებას.',
+  'დრამატურგიაში ამას მეორე აქტი ჰქვია.',
+  'არც ზეცა გიღიმის, არც ქვესკნელი.',
+  'ქულა მიღებულია. პასუხისმგებლობას არავინ იღებს.',
+  'შუაში ვართ: ბედიც ვერ წყვეტს, ვის მხარეზეა.'
+];
+var HIGH_CAPS = [
+  'გილოცავ, ქულა ისეთია, რომ მეზობლებიც გაიგებენ.',
+  'ბედი შენკენ იხედება და გიღიმის.',
+  'ჰაერში ტოსტის სუნი დგას.',
+  'ასეთ ქულაზე ჩვენთან ხბოს ხორცს კლავდნენ.',
+  'ფარდა იხსნება, მაყურებელი ფეხზე დგას.',
+  'ბორჯღალმა თავისი თქვა: გიმართლებს.',
+  'ცაში სხივებია, ჩვენც შენზე ვიყურებით.',
+  'ძალიან კარგი ქულაა. ახლა მოწინააღმდეგე თვალს არ გაგაცდენს.',
+  'ასეთი ქულა ახალ სადღეგრძელოს იმსახურებს.',
+  'ბედმა ლოცვა გამოგიგზავნა. გამოიყენე გონივრულად.',
+  'ამ ქულის შემდეგ ქორწილშიც დაგპატიჟებენ.',
+  'გამარჯობა, გამარჯვება. შენ ხომ აქ ხარ?'
+];
+var WIN_CAPS = [
+  'რაუნდი შენია! ტამადამ სიტყვა გადმოგცა.',
+  'გაიმარჯვე. ბებია ჩუმად ლოცულობს.',
+  'გილოცავ. ეს წუთი ფილმის ბოლოს უნდა აჩვენონ.',
+  'გაუმარჯოს გამარჯვებულს!',
+  'შენ იგებ. მეზობლებმა ბალკონიდან ტაში დაგიკრეს.',
+  'ბედმა თავისი ხელით დაამტკიცა: ეს შენი რაუნდია.',
+  'კოშკებზე ცეცხლები ანთია და ყველა შენზე ლაპარაკობს.',
+  'ხინკალი გითმობს ადგილს და ბულიონსაც გაძლევს.',
+  'მოიგე. ახლა შეგიძლია თქვა, რომ უბრალოდ გაგიმართლა.',
+  'ბორჯღალი შენკენ მოტრიალდა.'
+];
+var LOSE_CAPS = [
+  'რაუნდი წააგე. მონსტრმაც კი შეგიბრალა.',
+  'დამარცხდი. ბედი ზურგით დგას.',
+  'ფირი დაიწვა და გამარჯვების კადრები აღარ არსებობს.',
+  'ტიტრები მიდის და შენი სახელი ბოლოს წერია.',
+  'განაცხადი უარყოფილია, მეორე ფანჯარაში სცადე.',
+  'წააგე. ქუხილის შემდეგ სიჩუმე უფრო საშიშია.',
+  'შეცდომა 404: გამარჯვება ვერ მოიძებნა.',
+  'სუფრა გაჩუმდა. ტამადა წყალს სვამს.',
+  'შენი ხინკალი ტირის, მოწინააღმდეგე ღიმილს ვერ მალავს.',
+  'ეს რაუნდი ქრონიკაში ცუდი მაგალითის სახით შევა.'
+];
+function combos(vis, caps, extra) {
+  var out = [], i, j;
+  for (i = 0; i < vis.length; i++) for (j = 0; j < caps.length; j++) out.push({ k: vis[i], cap: caps[j], id: vis[i] + '|' + j });
+  return out.concat(extra || []);
+}
+var POOLS = {
+  low: combos(['mA', 'mB', 'mC', 'eye', 'storm', 'burn', 'glitch'], LOW_CAPS),
+  mid: combos(['leader', 'stamp', 'iris', 'card'], MID_CAPS, [
+    { k: 'icon', cap: 'გინდა დაგაფიცო წმინდა პორფილეს ხატზე?', id: 'icon|oath', tag: 'ფილმიდან' },
+    { k: 'card', big: 'კუ!', cap: 'ერთი სიტყვა, რომელიც ბევრს ამბობს.', id: 'card|ku', tag: 'ფილმიდან' }
+  ]),
+  high: combos(['curtain', 'sun', 'fire'], HIGH_CAPS, [
+    { k: 'wing', cap: 'შენ უკვე გაფრინდი.', id: 'wing|1' },
+    { k: 'wing', cap: 'ასე მაღლა ბედიც კი იშვიათად დაფრინავს.', id: 'wing|2' },
+    { k: 'wing', cap: 'გაფრენა დაიწყო. დაშვება გეგმაში არ ყოფილა.', id: 'wing|3' },
+    { k: 'wing', cap: 'ხელნაკეთი ფრთები, ქართული გამბედაობა. მიფრინავ!', id: 'wing|4' }
+  ]),
+  win: combos(['sun', 'fire', 'curtain', 'wing', 'stamp'], WIN_CAPS),
+  lose: combos(['mA', 'mB', 'mC', 'eye', 'storm', 'burn', 'iris', 'glitch', 'stamp'], LOSE_CAPS)
 };
-var WIN_POOL = [
-  { k: 'sun', cap: 'გაუმარჯოს გამარჯვებულს! ტამადამ სიტყვა გადმოგცა.' },
-  { k: 'fire', cap: 'რაუნდი შენია! ცაში ბადრაგს ანთებენ.' },
-  { k: 'curtain', cap: 'შენ იგებ. მაყურებელი ფეხზე დგას, ბებია ტირის.' },
-  { k: 'stamp', cap: 'ბედმა თავისი ხელით დაამტკიცა: შენ იგებ.' },
-  { k: 'sun', cap: 'გილოცავ. ეს ის წუთია, ფილმის ბოლოს რომ უჩვენებენ.' },
-  { k: 'fire', cap: 'გაიმარჯვე! კოშკებზე ცეცხლის ბურთები ანთია.' }
-];
-var LOSE_POOL = [
-  { k: 'eye', cap: 'დამარცხდი. ბედი ახლა შენს სახეს ჩაგიფიქრდა.' },
-  { k: 'storm', cap: 'წააგე. ქუხილის შემდეგ სიჩუმე უფრო საშიშია.' },
-  { k: 'burn', cap: 'ფირი დაიწვა. ამ რაუნდის კადრები აღარ არსებობს.' },
-  { k: 'iris', cap: 'დასასრული. ტიტრები უკვე შენს გვარს აჩვენებს.' },
-  { k: 'glitch', cap: 'შეცდომა 404: გამარჯვება ვერ მოიძებნა.' },
-  { k: 'stamp', cap: 'განაცხადი უარყოფილია. მეორე ფანჯარაში სცადე.' }
-];
 
-var cineBags = {};
-function pickFrom(key, pool) {
-  var b = cineBags[key], i, j, t;
-  if (!b || !b.length) {
-    b = [];
-    for (i = 0; i < pool.length; i++) b.push(i);
-    for (i = b.length - 1; i > 0; i--) { j = Math.floor(Math.random() * (i + 1)); t = b[i]; b[i] = b[j]; b[j] = t; }
-    cineBags[key] = b;
-  }
-  return pool[b.pop()];
+/* არცერთი სცენა არ მეორდება ბოლო 29 არჩევის განმავლობაში (ანუ მაქსიმუმ 30 გაგორებაში ერთხელ),
+   ერთი და იგივე ტიპი კი ზედიზედ არ მოდის */
+var cineHist = {};
+function pickScene(tier) {
+  var h = cineHist[tier] || (cineHist[tier] = []), pool = POOLS[tier], cands, last = h.slice(-2), i;
+  cands = pool.filter(function (c) { return h.indexOf(c.id) < 0 && !last.some(function (x) { return x.split('|')[0] === c.k; }); });
+  if (!cands.length) cands = pool.filter(function (c) { return h.indexOf(c.id) < 0; });
+  if (!cands.length) { h.length = 0; cands = pool; }
+  var pick = cands[Math.floor(Math.random() * cands.length)];
+  h.push(pick.id);
+  if (h.length > 29) h.shift();
+  return pick;
+}
+
+/* თუ მოწყობილობას ქართული ხმა აქვს, მონსტრი წარწერას დაბალი ხმით წაიკითხავს; თუ არა, იცინის (ხმა სინთეზირებულია) */
+function mockSpeak(text) {
+  try {
+    if (Sound.isMuted() || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    var v = window.speechSynthesis.getVoices().filter(function (x) { return /^ka/i.test(x.lang); })[0];
+    if (!v) return;
+    var u = new SpeechSynthesisUtterance(text);
+    u.voice = v; u.lang = v.lang; u.pitch = 0.2; u.rate = 0.8;
+    setTimeout(function () { try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) {} }, 900);
+  } catch (e) {}
 }
 
 var Cine = (function () {
@@ -480,7 +611,7 @@ var Cine = (function () {
     if (queue.length) setTimeout(next, 120);
   }
   function show(item) {
-    var b = box(), sc = SC[item.k], tone = sc ? sc.tone : 'dry', dur = item.long ? 3000 : 2200;
+    var b = box(), sc = SC[item.k], tone = sc ? sc.tone : 'dry', dur = Math.min(7000, Math.max(3800, 2600 + (item.cap || '').length * 55)) + (item.long ? 1000 : 0);
     playing = true;
     b.hidden = false;
     b.className = 'cine tone-' + tone + ' k-' + item.k + (item.long ? ' long' : '');
@@ -493,15 +624,18 @@ var Cine = (function () {
       m.src = useClip;
       if (!gif) { m.muted = true; m.autoplay = true; m.playsInline = true; m.setAttribute('playsinline', ''); m.loop = false;
         m.onended = function () { clearTimeout(timer); timer = setTimeout(finish, 250); }; }
-      m.onerror = function () { stageEl.innerHTML = sc ? sc.html(item.v, item.kind) : ''; };
+      m.onerror = function () { stageEl.innerHTML = sc ? sc.html(item.v, item.kind, item) : ''; };
       stageEl.replaceChildren(m);
-      dur = 4200;
+      dur = Math.max(dur, 4200);
     } else {
-      stageEl.innerHTML = sc ? sc.html(item.v, item.kind) : '';
+      stageEl.innerHTML = sc ? sc.html(item.v, item.kind, item) : '';
     }
     $('cineCap').textContent = item.cap || '';
     $('cineTag').textContent = item.tag || '';
-    if (tone === 'fear') { Sound.play('boom'); Sound.play('sting'); try { if (navigator.vibrate) navigator.vibrate([80, 40, 120]); } catch (e) {} }
+    if (tone === 'fear') {
+      Sound.play('boom'); Sound.play('sting'); try { if (navigator.vibrate) navigator.vibrate([80, 40, 120]); } catch (e) {}
+      if (/^m[ABC]$/.test(item.k)) { setTimeout(function () { Sound.play('laugh'); }, 420); mockSpeak(item.cap); }
+    }
     else if (tone === 'joy') Sound.play('fanfare');
     else Sound.play('reel');
     clearTimeout(timer);
@@ -521,15 +655,15 @@ var Cine = (function () {
 })();
 
 function rollReaction(value) {
-  var sc = pickFrom('v' + value, ROLL_POOL[value] || ROLL_POOL[3]);
-  Cine.play({ k: sc.k, cap: sc.cap, v: value, kind: 'roll', clip: CLIPS.roll, tag: 'კამათელი · ' + value });
+  var sc = pickScene(value <= 2 ? 'low' : value <= 4 ? 'mid' : 'high');
+  Cine.play({ k: sc.k, cap: sc.cap, big: sc.big, v: value, kind: 'roll', clip: CLIPS.roll, tag: sc.tag || ('კამათელი · ' + value) });
 }
 function roundResultScene(mine) {
-  var sc = pickFrom(mine ? 'win' : 'lose', mine ? WIN_POOL : LOSE_POOL);
+  var sc = pickScene(mine ? 'win' : 'lose');
   Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, tag: mine ? 'რაუნდი შენია' : 'რაუნდი წაგებულია' });
 }
 function finalScene(mine) {
-  var sc = pickFrom(mine ? 'win' : 'lose', mine ? WIN_POOL : LOSE_POOL);
+  var sc = pickScene(mine ? 'win' : 'lose');
   Cine.cancel();
   Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, long: true, tag: mine ? 'გამარჯვება' : 'დამარცხება' });
 }
@@ -762,19 +896,25 @@ function setState(next) {
     holdStage = true;
     heldDice = { a: next.dice.a, b: next.dice.b };
     clearTimeout(timers.hold);
-    timers.hold = setTimeout(function () { holdStage = false; render(); }, 5600);
+    timers.hold = setTimeout(releaseHold, 1400);
   }
   render();
   maybeBotTurn();
 }
 
 /* ---------- ვარჯიში კომპიუტერთან ---------- */
+function releaseHold() {
+  clearTimeout(timers.hold);
+  if (!holdStage) return;
+  if (Cine.busy()) { timers.hold = setTimeout(releaseHold, 300); return; }
+  timers.hold = setTimeout(function () { holdStage = false; render(); maybeBotTurn(); }, 700);
+}
 function maybeBotTurn() {
   clearTimeout(timers.bot);
   if (mode !== 'bot' || !state || state.over) return;
   if (state.phase === 'choose' && !state.picked.b) timers.bot = setTimeout(botPick, 800 + Math.random() * 600);
   else if (state.phase === 'play' && state.step === 'roll' && state.roller === 'b') timers.bot = setTimeout(botRoll, 1100 + Math.random() * 500);
-  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botMove, 6000 + Math.random() * 600);
+  else if (state.phase === 'play' && state.step === 'act' && state.turn === 'b') timers.bot = setTimeout(botWait, 1500);
 }
 function botPick() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'choose' || state.picked.b) return;
@@ -785,6 +925,11 @@ function botRoll() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'roll' || state.roller !== 'b') return;
   var nx = R.reduceRoll(state, 'b', Math.random);
   if (nx) setState(nx);
+}
+function botWait() {
+  if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'act' || state.turn !== 'b') return;
+  if (holdStage || Cine.busy()) { timers.bot = setTimeout(botWait, 400); return; }
+  timers.bot = setTimeout(botMove, 700 + Math.random() * 500);
 }
 function botMove() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'act' || state.turn !== 'b') return;

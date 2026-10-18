@@ -16,7 +16,8 @@ var ws = null, wsOpen = false, queue = [], retry = 0, retryTimer = null, intenti
 var oppOnline = true, closed = false, connLost = false, pending = false;
 var prevHp = { a: MAX, b: MAX };
 var timers = {}, toastTimer = null;
-var pendingReact = null, resShownFor = '';
+var pendingReact = null, resShownFor = '', sceneSoon = false;
+function sceneBusy() { return sceneSoon || !!pendingReact || anim.a || anim.b || Cine.busy(); }
 var holdStage = false, heldDice = null, anim = { a: false, b: false }, faces = { a: null, b: null };
 var chosenTool = null;      // 'hand' | 'fork' (არჩევის ეკრანზე)
 var roomStake = 0;
@@ -432,33 +433,6 @@ var SC = {
   fire: { tone: 'joy', html: function () {
     return sv('<rect width="200" height="200" fill="#120406"/>' + burst(50, 60, '#f0c25a', 0, 12) + burst(150, 50, '#ff6a4d', .35, 14) + burst(100, 90, '#fff1c4', .7, 16) + burst(34, 112, '#f0c25a', 1.05, 10) + burst(170, 108, '#fff1c4', 1.3, 12) + towersSVG('#050102') + '<rect x="0" y="186" width="200" height="14" fill="#050102"/>', 'fire');
   } },
-  /* ---- მონსტრები: ყველა ორიგინალია ---- */
-  mA: { tone: 'fear', html: function () {
-    var teeth = '', i;
-    for (i = 0; i < 7; i++) teeth += '<path d="M' + (46 + i * 15) + ' 128 l7 22 l7 -22z" fill="#f4efe0"/>';
-    var low = '';
-    for (i = 0; i < 6; i++) low += '<path d="M' + (53 + i * 15) + ' 178 l7 -20 l7 20z" fill="#f4efe0"/>';
-    return sv('<defs><radialGradient id="eg"><stop offset="0" stop-color="#fff58a"/><stop offset="1" stop-color="#ff9d00"/></radialGradient></defs>' +
-      '<g class="mon"><path d="M16 200 C6 90 46 22 100 22 C154 22 194 90 184 200Z" fill="#1d0b14"/>' +
-      '<path d="M50 44 L22 -8 L76 30Z M150 44 L178 -8 L124 30Z" fill="#35121f"/>' +
-      '<g class="eyes"><path d="M42 84 Q62 62 86 82 Q64 96 42 84Z" fill="url(#eg)"/><path d="M158 84 Q138 62 114 82 Q136 96 158 84Z" fill="url(#eg)"/><rect x="60" y="74" width="5" height="16" rx="2" fill="#000"/><rect x="135" y="74" width="5" height="16" rx="2" fill="#000"/></g>' +
-      '<path d="M34 124 Q100 150 166 124 L170 182 Q100 210 30 182Z" fill="#5a0612"/>' + teeth + low +
-      '<g class="jaw"><path d="M70 160 Q100 190 130 160 Q100 172 70 160Z" fill="#d4505f"/></g></g>', 'mon');
-  } },
-  mB: { tone: 'fear', html: function () {
-    var fangs = '<path d="M58 134 l8 26 l8 -26z M126 134 l8 26 l8 -26z" fill="#f4efe0"/>';
-    return sv('<g class="mon"><circle cx="100" cy="104" r="84" fill="#2c1346"/><path d="M40 52 L26 8 L66 36Z M160 52 L174 8 L134 36Z" fill="#43205f"/>' +
-      '<circle cx="100" cy="86" r="42" fill="#f3ead2"/><g class="look"><circle cx="100" cy="86" r="24" fill="#c4161f"/><circle cx="100" cy="86" r="11" fill="#000"/></g>' +
-      '<path d="M30 128 Q100 180 170 128 Q100 150 30 128Z" fill="#12020a"/>' + fangs + '<path class="tongue" d="M86 150 q14 40 28 0z" fill="#e0536a"/></g>', 'mon');
-  } },
-  mC: { tone: 'fear', html: function () {
-    var pos = [[50, 70, 14], [98, 52, 20], [152, 72, 14], [34, 108, 9], [100, 100, 12], [166, 110, 9], [72, 92, 8]], o = '', i;
-    for (i = 0; i < pos.length; i++) o += '<g class="blink" style="animation-delay:' + (i * 0.23).toFixed(2) + 's"><circle cx="' + pos[i][0] + '" cy="' + pos[i][1] + '" r="' + pos[i][2] + '" fill="#f6efd4"/><circle cx="' + (pos[i][0] + 2) + '" cy="' + pos[i][1] + '" r="' + (pos[i][2] * .45) + '" fill="#b10d1a"/></g>';
-    var teeth = '';
-    for (i = 0; i < 9; i++) teeth += '<path d="M' + (36 + i * 16) + ' 140 l8 20 l8 -20z" fill="#f4efe0"/>';
-    return sv('<g class="mon"><path d="M10 200 C0 110 20 30 100 28 C180 30 200 110 190 200Z" fill="#14110a"/>' + o +
-      '<path d="M26 138 Q100 118 174 138 Q176 190 100 196 Q24 190 26 138Z" fill="#4a0510"/>' + teeth + '</g>', 'mon');
-  } },
   /* ---- ფრენა ---- */
   wing: { tone: 'joy', html: function () {
     var cl = '<g class="cloud" fill="#fff4d6" opacity=".7"><ellipse cx="30" cy="40" rx="24" ry="8"/><ellipse cx="160" cy="26" rx="28" ry="9"/><ellipse cx="120" cy="150" rx="22" ry="7"/></g>';
@@ -484,9 +458,9 @@ var SC = {
 };
 
 var LOW_CAPS = [
-  'ჰა-ჰა-ჰა! ეს ქულა დაგცინის და მე ვუერთდები.',
+  'ეს ქულა შენზე ჩუმად იცინის, ჩვენც გვეცინება.',
   'ასეთი ქულა მხოლოდ საშიშ სიზმარში გვხვდება.',
-  'ბედმა მონსტრი გამოგიგზავნა. ქულა კი თავად დაგაკავშირა.',
+  'ბედმა ცუდი ამბავი გამოგიგზავნა. ქულა კი თავად დაგაკავშირა.',
   'ნუ გეშინია. უბრალოდ ცუდი ქულაა. და ცუდი მეგობრებიც.',
   'ამ ქულით ხინკალს ნახევრადაც ვერ შეჭამ.',
   'კამათელმა შენზე ხმამაღლა გაიცინა. ახლა მე ვიცინი.',
@@ -497,7 +471,7 @@ var LOW_CAPS = [
   'შენს ქულას მეზობლებიც გაიგებენ და გაიცინებენ.',
   'ხედავ? ეს ისაა, რასაც ბებია „ცუდი თვალი“ ეძახდა.',
   'ამ ქულას ტამადაც კი ვერ მოიმარჯვებს.',
-  'ახლა ყველაფერი ჩემზეა დამოკიდებული. და მე არ შეგიბრალებ.'
+  'ახლა ბედი ფიქრობს, რა გიყოს. სახეზე არ ეწერა კარგი.'
 ];
 var MID_CAPS = [
   'საშუალო ქულა: არც ტოსტი, არც სადღეგრძელო.',
@@ -542,7 +516,7 @@ var WIN_CAPS = [
   'ბორჯღალი შენკენ მოტრიალდა.'
 ];
 var LOSE_CAPS = [
-  'რაუნდი წააგე. მონსტრმაც კი შეგიბრალა.',
+  'რაუნდი წააგე. თვით ბედმაც კი თვალი აარიდა.',
   'დამარცხდი. ბედი ზურგით დგას.',
   'ფირი დაიწვა და გამარჯვების კადრები აღარ არსებობს.',
   'ტიტრები მიდის და შენი სახელი ბოლოს წერია.',
@@ -559,7 +533,7 @@ function combos(vis, caps, extra) {
   return out.concat(extra || []);
 }
 var POOLS = {
-  low: combos(['mA', 'mB', 'mC', 'eye', 'storm', 'burn', 'glitch'], LOW_CAPS),
+  low: combos(['eye', 'storm', 'burn', 'glitch'], LOW_CAPS),
   mid: combos(['leader', 'stamp', 'iris', 'card'], MID_CAPS, [
     { k: 'icon', cap: 'გინდა დაგაფიცო წმინდა პორფილეს ხატზე?', id: 'icon|oath', tag: 'ფილმიდან' },
     { k: 'card', big: 'კუ!', cap: 'ერთი სიტყვა, რომელიც ბევრს ამბობს.', id: 'card|ku', tag: 'ფილმიდან' }
@@ -571,7 +545,7 @@ var POOLS = {
     { k: 'wing', cap: 'ხელნაკეთი ფრთები, ქართული გამბედაობა. მიფრინავ!', id: 'wing|4' }
   ]),
   win: combos(['sun', 'fire', 'curtain', 'wing', 'stamp'], WIN_CAPS),
-  lose: combos(['mA', 'mB', 'mC', 'eye', 'storm', 'burn', 'iris', 'glitch', 'stamp'], LOSE_CAPS)
+  lose: combos(['eye', 'storm', 'burn', 'iris', 'glitch', 'stamp'], LOSE_CAPS)
 };
 
 /* არცერთი სცენა არ მეორდება ბოლო 29 არჩევის განმავლობაში (ანუ მაქსიმუმ 30 გაგორებაში ერთხელ),
@@ -586,18 +560,6 @@ function pickScene(tier) {
   h.push(pick.id);
   if (h.length > 29) h.shift();
   return pick;
-}
-
-/* თუ მოწყობილობას ქართული ხმა აქვს, მონსტრი წარწერას დაბალი ხმით წაიკითხავს; თუ არა, იცინის (ხმა სინთეზირებულია) */
-function mockSpeak(text) {
-  try {
-    if (Sound.isMuted() || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-    var v = window.speechSynthesis.getVoices().filter(function (x) { return /^ka/i.test(x.lang); })[0];
-    if (!v) return;
-    var u = new SpeechSynthesisUtterance(text);
-    u.voice = v; u.lang = v.lang; u.pitch = 0.2; u.rate = 0.8;
-    setTimeout(function () { try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) {} }, 900);
-  } catch (e) {}
 }
 
 var Cine = (function () {
@@ -634,7 +596,6 @@ var Cine = (function () {
     $('cineTag').textContent = item.tag || '';
     if (tone === 'fear') {
       Sound.play('boom'); Sound.play('sting'); try { if (navigator.vibrate) navigator.vibrate([80, 40, 120]); } catch (e) {}
-      if (/^m[ABC]$/.test(item.k)) { setTimeout(function () { Sound.play('laugh'); }, 420); mockSpeak(item.cap); }
     }
     else if (tone === 'joy') Sound.play('fanfare');
     else Sound.play('reel');
@@ -654,13 +615,9 @@ var Cine = (function () {
   };
 })();
 
-function rollReaction(value) {
-  var sc = pickScene(value <= 2 ? 'low' : value <= 4 ? 'mid' : 'high');
-  Cine.play({ k: sc.k, cap: sc.cap, big: sc.big, v: value, kind: 'roll', clip: CLIPS.roll, tag: sc.tag || ('კამათელი · ' + value) });
-}
-function roundResultScene(mine) {
-  var sc = pickScene(mine ? 'win' : 'lose');
-  Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, tag: mine ? 'რაუნდი შენია' : 'რაუნდი წაგებულია' });
+function rollScene(tier, value, tag) {
+  var sc = pickScene(tier);
+  Cine.play({ k: sc.k, cap: sc.cap, big: sc.big, v: value, kind: tier === 'win' || tier === 'high' ? 'win' : tier === 'mid' ? 'roll' : 'lose', clip: tier === 'win' || tier === 'high' ? CLIPS.win : tier === 'mid' ? CLIPS.roll : CLIPS.lose, tag: sc.tag || tag });
 }
 function finalScene(mine) {
   var sc = pickScene(mine ? 'win' : 'lose');
@@ -693,7 +650,7 @@ function eventText(ev) {
     case 'sip': return mine ? 'ბულიონი დალიე, არაფერი დაიღვარა.' : 'მოწინააღმდეგემ ბულიონი დალია.';
     case 'locked': return mine ? 'არჩევანი მიღებულია.' : 'მოწინააღმდეგემ ხინკლის აღების წესი აირჩია.';
     case 'ready': return 'ორივემ ხინკალი სწორად აიღო. გააგორეთ კამათელი!';
-    case 'roll': return mine ? 'შენ გააგორე: ' + ev.value + '.' : 'მოწინააღმდეგემ გააგორა: ' + ev.value + '.';
+    case 'roll': return mine ? 'შენ გააგორე: ' + ev.value + '.' : 'მოწინააღმდეგემ გააგორა. ქულას ორივეს გაგორების შემდეგ ნახავ.';
     case 'roll_tie': return 'ფრე! კამათელი თავიდან უნდა გაგორდეს.';
     case 'roll_done': return '';
   }
@@ -758,13 +715,17 @@ function flushReaction() {
   var pr = pendingReact;
   if (!pr || anim.a || anim.b) return;
   pendingReact = null;
-  rollReaction(pr.value);
-  clearTimeout(timers.react2);
-  if (pr.done) {
-    timers.react2 = setTimeout(function () {
-      if (state && state.phase === 'play' && state.step === 'act') roundResultScene(state.turn === role);
-    }, 600);
-  }
+  if (!pr.done) return;                       // ერთი კამათელი ჯერ საკმარისი არ არის: სცენა ორივეს გაგორების შემდეგ ჩნდება
+  clearTimeout(timers.react2); sceneSoon = false;
+  sceneSoon = true;
+  timers.react2 = setTimeout(function () {
+    sceneSoon = false;
+    var mv = pr.dice[role], ov = pr.dice[role === 'a' ? 'b' : 'a'];
+    if (mv === null || ov === null) return;
+    if (mv === ov) rollScene('mid', mv, 'ფრე');
+    else if (mv > ov) rollScene(mv >= 5 ? 'high' : 'win', mv, mv >= 5 ? 'მაღალი ქულა' : 'რაუნდი შენია');
+    else rollScene(mv <= 2 ? 'low' : 'lose', mv, mv <= 2 ? 'დაბალი ქულა' : 'რაუნდი წაგებულია');
+  }, 500);
 }
 function animateDie(x) {
   var count = 0;
@@ -788,7 +749,9 @@ function renderStage() {
   if (s.step === 'roll' && s.dice.a === null && s.dice.b === null && !anim.a && !anim.b) { pendingReact = null; }
   $('skipHint').hidden = !holdStage;
   var d = (holdStage && heldDice) ? heldDice : s.dice;
-  function val(x) { return anim[x] ? faces[x] : d[x]; }
+  // მოწინააღმდეგის კამათლის ქულა დამალულია, სანამ შენც არ გააგორებ
+  var hideOpp = !holdStage && s.step === 'roll' && d[op] !== null && d[me] === null;
+  function val(x) { if (x === op && hideOpp) return null; return anim[x] ? faces[x] : d[x]; }
   $('dieMe').innerHTML = dieSVG(val(me));
   $('dieOpp').innerHTML = dieSVG(val(op));
   $('dieMe').classList.toggle('rolling', anim[me]);
@@ -887,7 +850,7 @@ function setState(next) {
   if (next.n !== prev.n) {
     eventSound(next);
     if (next.ev && /^roll/.test(next.ev.kind)) {
-      pendingReact = { value: next.ev.value, done: next.ev.kind === 'roll_done' };
+      pendingReact = { value: next.ev.value, done: next.ev.kind === 'roll_done' || next.ev.kind === 'roll_tie', dice: { a: next.dice.a, b: next.dice.b } };
       animateDie(next.ev.who);
     }
   }
@@ -906,7 +869,7 @@ function setState(next) {
 function releaseHold() {
   clearTimeout(timers.hold);
   if (!holdStage) return;
-  if (Cine.busy()) { timers.hold = setTimeout(releaseHold, 300); return; }
+  if (sceneBusy()) { timers.hold = setTimeout(releaseHold, 300); return; }
   timers.hold = setTimeout(function () { holdStage = false; render(); maybeBotTurn(); }, 700);
 }
 function maybeBotTurn() {
@@ -928,7 +891,7 @@ function botRoll() {
 }
 function botWait() {
   if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'act' || state.turn !== 'b') return;
-  if (holdStage || Cine.busy()) { timers.bot = setTimeout(botWait, 400); return; }
+  if (holdStage || sceneBusy()) { timers.bot = setTimeout(botWait, 400); return; }
   timers.bot = setTimeout(botMove, 700 + Math.random() * 500);
 }
 function botMove() {
@@ -1000,7 +963,7 @@ function scheduleRetry() {
 function resetNet() {
   intentional = true;
   clearTimeout(retryTimer);
-  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB); clearTimeout(timers.react2);
+  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB); clearTimeout(timers.react2); sceneSoon = false;
   pendingReact = null;
   holdStage = false; heldDice = null; anim = { a: false, b: false };
   var old = ws;

@@ -364,12 +364,29 @@ function khinkaliSVG(hp, shield, uid) {
 /* ---------- კინო-სცენები: მთელ ეკრანზე, ძველი ფირის სტილში (ყველაფერი ჩვენი ორიგინალია, ფაილები არ სჭირდება) ---------- */
 /* თუ საცავში დევს მოკლე კლიპები clip-win-*.mp4, clip-lose-*.mp4, clip-roll-*.mp4 (ან .webm/.gif),
    სერვერი ისინი აღმოაჩენს და თამაში მათ გამოაჩენს; სხვა შემთხვევაში ჩვენი ნახატი სცენები ჩაირთვება. */
-var CLIPS = { win: [], lose: [], roll: [] };
+var CLIPS = { win: [], lose: [], tie: [], finalWin: [], finalLose: [] };
+var clipsReady = false;
 try {
   fetch('clips.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-    if (j && typeof j === 'object') ['win', 'lose', 'roll'].forEach(function (k) { if (Array.isArray(j[k])) CLIPS[k] = j[k].filter(function (n) { return /^clip-[a-z0-9_.-]+$/i.test(n); }); });
+    if (j && typeof j === 'object') Object.keys(CLIPS).forEach(function (k) { if (Array.isArray(j[k])) CLIPS[k] = j[k].filter(function (n) { return typeof n === 'string' && n.length < 300 && !/\.\./.test(n); }); });
+    clipsReady = true;
   }).catch(function () {});
 } catch (e) {}
+function hasClips() { return CLIPS.win.length + CLIPS.lose.length + CLIPS.tie.length > 0; }
+/* კლიპი არ მეორდება, სანამ სხვები არ გამოჩნდება (მაქსიმუმ ბოლო 29 არჩევა) */
+var clipHist = {};
+function pickClip(cat) {
+  var pool = CLIPS[cat] || [];
+  if (!pool.length) return null;
+  var h = clipHist[cat] || (clipHist[cat] = []), keep = Math.min(29, pool.length - 1);
+  var cands = pool.filter(function (n) { return h.indexOf(n) < 0; });
+  if (!cands.length) { h.length = 0; cands = pool; }
+  var pick = cands[Math.floor(Math.random() * cands.length)];
+  h.push(pick);
+  while (h.length > keep) h.shift();
+  return pick;
+}
+function clipURL(name) { return name.split('/').map(encodeURIComponent).join('/'); }
 
 function sv(inner, extra) { return '<svg class="cs ' + (extra || '') + '" viewBox="0 0 200 200" aria-hidden="true">' + inner + '</svg>'; }
 function borjSVG(cx, cy, r, col, sw) {
@@ -579,23 +596,33 @@ var Cine = (function () {
     b.hidden = false;
     b.className = 'cine tone-' + tone + ' k-' + item.k + (item.long ? ' long' : '');
     void b.offsetWidth;
-    var useClip = (item.clip && item.clip.length) ? item.clip[Math.floor(Math.random() * item.clip.length)] : null;
+    var useClip = item.clipName || null;
     var stageEl = $('cineStage');
     if (useClip) {
-      var gif = /\.gif$/i.test(useClip), m = document.createElement(gif ? 'img' : 'video');
-      m.className = 'clipmedia';
-      m.src = useClip;
-      if (!gif) { m.muted = true; m.autoplay = true; m.playsInline = true; m.setAttribute('playsinline', ''); m.loop = false;
-        m.onended = function () { clearTimeout(timer); timer = setTimeout(finish, 250); }; }
-      m.onerror = function () { stageEl.innerHTML = sc ? sc.html(item.v, item.kind, item) : ''; };
-      stageEl.replaceChildren(m);
-      dur = Math.max(dur, 4200);
+      b.classList.add('hasclip');
+      var mount = function (name, tries) {
+        var gif = /\.gif$/i.test(name), m = document.createElement(gif ? 'img' : 'video');
+        m.className = 'clipmedia';
+        m.src = clipURL(name);
+        if (!gif) {
+          m.playsInline = true; m.setAttribute('playsinline', ''); m.loop = true;
+          m.play().catch(function () { m.muted = true; m.play().catch(function () {}); });   // ჯერ ხმით ვცდით, თუ ბრაუზერი არ იძლევა, უხმოდ
+        }
+        m.onerror = function () {                       // ფაილი ვერ ჩაიტვირთა: ვცდით სხვა კლიპს, თუ არა, ჩვენს სცენას
+          var alt = tries < 3 ? pickClip(item.kind) : null;
+          if (alt && alt !== name) mount(alt, tries + 1);
+          else { b.classList.remove('hasclip'); stageEl.innerHTML = ''; }
+        };
+        stageEl.replaceChildren(m);
+      };
+      mount(useClip, 0);
     } else {
       stageEl.innerHTML = sc ? sc.html(item.v, item.kind, item) : '';
     }
     $('cineCap').textContent = item.cap || '';
     $('cineTag').textContent = item.tag || '';
-    if (tone === 'fear') {
+    if (useClip) { /* კლიპს თავისი ხმა აქვს */ }
+    else if (tone === 'fear') {
       Sound.play('boom'); Sound.play('sting'); try { if (navigator.vibrate) navigator.vibrate([80, 40, 120]); } catch (e) {}
     }
     else if (tone === 'joy') Sound.play('fanfare');
@@ -616,14 +643,33 @@ var Cine = (function () {
   };
 })();
 
+/* tier: high | win | mid | low | lose; თუ საცავში კლიპები დევს, მხოლოდ ისინი გამოჩნდება, სხვა შემთხვევაში ჩვენი ნახატი სცენები */
+function captionFor(cat) {
+  var pool = cat === 'win' ? HIGH_CAPS.concat(WIN_CAPS) : cat === 'lose' ? LOW_CAPS.concat(LOSE_CAPS) : MID_CAPS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function clipScene(cat, tag, long) {
+  var name = pickClip(cat);
+  if (!name) return false;
+  Cine.play({ k: 'clip', clipName: name, cap: captionFor(cat === 'finalWin' ? 'win' : cat === 'finalLose' ? 'lose' : cat), v: '', kind: cat, tag: tag, long: long });
+  return true;
+}
 function rollScene(tier, value, tag) {
+  if (hasClips()) {
+    var cat = (tier === 'win' || tier === 'high') ? 'win' : (tier === 'lose' || tier === 'low') ? 'lose' : 'tie';
+    if (clipScene(cat, tag, false)) return;
+  }
   var sc = pickScene(tier);
-  Cine.play({ k: sc.k, cap: sc.cap, big: sc.big, v: value, kind: tier === 'win' || tier === 'high' ? 'win' : tier === 'mid' ? 'roll' : 'lose', clip: tier === 'win' || tier === 'high' ? CLIPS.win : tier === 'mid' ? CLIPS.roll : CLIPS.lose, tag: sc.tag || tag });
+  Cine.play({ k: sc.k, cap: sc.cap, big: sc.big, v: value, kind: tier === 'win' || tier === 'high' ? 'win' : tier === 'mid' ? 'roll' : 'lose', tag: sc.tag || tag });
 }
 function finalScene(mine) {
-  var sc = pickScene(mine ? 'win' : 'lose');
   Cine.cancel();
-  Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', clip: mine ? CLIPS.win : CLIPS.lose, long: true, tag: mine ? 'გამარჯვება' : 'დამარცხება' });
+  if (hasClips()) {
+    var cat = mine ? (CLIPS.finalWin.length ? 'finalWin' : 'win') : (CLIPS.finalLose.length ? 'finalLose' : 'lose');
+    if (clipScene(cat, mine ? 'გამარჯვება' : 'დამარცხება', true)) return;
+  }
+  var sc = pickScene(mine ? 'win' : 'lose');
+  Cine.play({ k: sc.k, cap: sc.cap, v: mine ? '✓' : '✗', kind: mine ? 'win' : 'lose', long: true, tag: mine ? 'გამარჯვება' : 'დამარცხება' });
 }
 
 /* კამათლის ნახატი */

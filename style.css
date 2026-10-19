@@ -285,3 +285,9 @@ h1{text-shadow:0 0 22px rgba(231,176,74,.5)}
 .tc-in{border:2px solid #3a2f1c;width:90%;height:84%;display:flex;align-items:center;justify-content:center}
 .tc-big{font-family:var(--display);font-weight:900;font-size:clamp(48px,20vw,110px);color:#2a1d0c;animation:tcslam .5s .2s both}
 @keyframes tcslam{from{opacity:0;transform:scale(3)}to{opacity:1;transform:scale(1)}}
+
+/* რეალური კლიპები: ფილტრების გარეშე, მთლიანად ჩანს */
+.cine.hasclip .cinestage{filter:none;animation:none;background:#000}
+.cine.hasclip .clipmedia{object-fit:contain}
+.cine.hasclip .flash,.cine.hasclip .grain,.cine.hasclip .scratch{display:none}
+.cine.hasclip{animation:cinein .18s ease-out}

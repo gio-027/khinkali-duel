@@ -60,22 +60,45 @@ for (const name of STATIC_FILES) {
   });
 }
 
-/* ძველი ფილმის მოკლე კლიპები (არასავალდებულო): ფაილები clip-win-*.mp4, clip-lose-*.mp4, clip-roll-*.mp4 (ასევე .webm, .gif).
-   თუ ასეთი ფაილები საცავშია, თამაში თავად აღმოაჩენს და გამოაჩენს. */
-const CLIP_RE = /^clip-(win|lose|roll)[a-z0-9_-]*\.(mp4|webm|gif)$/i;
-const clipList = { win: [], lose: [], roll: [] };
-try {
-  for (const name of fs.readdirSync(__dirname)) {
-    const m = CLIP_RE.exec(name);
-    if (!m) continue;
-    const st = fs.statSync(path.join(__dirname, name));
-    if (!st.isFile() || st.size > 8 * 1024 * 1024) continue;
-    files.set('/' + name, { body: fs.readFileSync(path.join(__dirname, name)), type: TYPES['.' + m[2].toLowerCase()], media: true });
-    clipList[m[1].toLowerCase()].push(name);
+/* ფილმების კლიპები (.gif, .mp4, .webm). ფაილის სახელი განსაზღვრავს, სად გამოჩნდება:
+   მოგება (win) / წაგება (lose) / წყვილი ანუ ფრე (tie); თუ სახელში წერია „საბოლოო“ (final), ის თამაშის დასასრულზეც გამოჩნდება.
+   ფაილები შეიძლება ეწეროს საცავის მთავარ გვერდზე ან ერთი საქაღალდის შიგნით. */
+const MEDIA_RE = /\.(gif|mp4|webm)$/i;
+const MAX_CLIP = 25 * 1024 * 1024;
+const MAX_CLIPS_TOTAL = 1024 * 1024 * 1024;
+const clipList = { win: [], lose: [], tie: [], finalWin: [], finalLose: [] };
+function classifyClip(name) {
+  const n = name.normalize('NFC').toLowerCase();
+  const fin = /საბოლოო|final/.test(n);
+  let type = null;
+  if (/მოგება|მოიგო|win/.test(n)) type = 'win';
+  else if (/წაგება|წააგო|lose|loss/.test(n)) type = 'lose';
+  else if (/წყვილ|ფრე|tie|pair|draw|double/.test(n)) type = 'tie';
+  return type ? { type, fin } : null;
+}
+let clipTotal = 0;
+function scanClips(dir, rel) {
+  let entries = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+  for (const ent of entries) {
+    if (ent.name.startsWith('.') || ent.name === 'node_modules') continue;
+    if (ent.isDirectory()) { if (!rel) scanClips(path.join(dir, ent.name), ent.name + '/'); continue; }
+    if (!ent.isFile() || !MEDIA_RE.test(ent.name)) continue;
+    const full = path.join(dir, ent.name);
+    const st = fs.statSync(full);
+    const cls = classifyClip(ent.name);
+    if (!cls) { console.log('clip skipped (name has no win/lose/tie word): ' + rel + ent.name); continue; }
+    if (st.size > MAX_CLIP || clipTotal + st.size > MAX_CLIPS_TOTAL) { console.log('clip skipped (too big): ' + rel + ent.name); continue; }
+    clipTotal += st.size;
+    const key = (rel + ent.name).normalize('NFC');
+    files.set('/' + key, { file: full, size: st.size, type: TYPES[path.extname(ent.name).toLowerCase()], media: true });
+    if (cls.fin) clipList[cls.type === 'win' ? 'finalWin' : cls.type === 'lose' ? 'finalLose' : 'tie'].push(key);
+    clipList[cls.type].push(key);
   }
-} catch (e) { /* კლიპების გარეშეც მუშაობს */ }
+}
+scanClips(__dirname, '');
+console.log('clips: win ' + clipList.win.length + ', lose ' + clipList.lose.length + ', tie ' + clipList.tie.length + ', final win ' + clipList.finalWin.length + ', final lose ' + clipList.finalLose.length);
 const clipsJson = JSON.stringify(clipList);
-console.log('clips: win ' + clipList.win.length + ', lose ' + clipList.lose.length + ', roll ' + clipList.roll.length);
 
 const server = http.createServer((req, res) => {
   let p = (req.url || '/').split('?')[0];
@@ -88,27 +111,30 @@ const server = http.createServer((req, res) => {
     return res.end(clipsJson);
   }
   if (p === '/') p = '/index.html';
+  try { p = decodeURIComponent(p).normalize('NFC'); } catch (e) { /* ignore */ }
   const f = files.get(p);
   if (!f || (req.method !== 'GET' && req.method !== 'HEAD')) {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     return res.end('Not found');
   }
-  if (f.media) {                                   // ვიდეოს Safari-სთვის Range სჭირდება
-    const total = f.body.length;
+  if (f.media) {                                   // ვიდეო/გიფი დისკიდან იგზავნება ნაწილ-ნაწილ (Safari-სთვის Range სჭირდება)
+    const total = f.size;
     const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
     const hdr = { 'content-type': f.type, 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' };
+    let a = 0, b = total - 1, code = 200;
     if (m && (m[1] !== '' || m[2] !== '')) {
-      let a = m[1] === '' ? Math.max(0, total - parseInt(m[2], 10)) : parseInt(m[1], 10);
-      let b = m[1] === '' || m[2] === '' ? total - 1 : Math.min(parseInt(m[2], 10), total - 1);
+      a = m[1] === '' ? Math.max(0, total - parseInt(m[2], 10)) : parseInt(m[1], 10);
+      b = m[1] === '' || m[2] === '' ? total - 1 : Math.min(parseInt(m[2], 10), total - 1);
       if (a > b || a >= total) { res.writeHead(416, { 'content-range': 'bytes */' + total }); return res.end(); }
       hdr['content-range'] = 'bytes ' + a + '-' + b + '/' + total;
-      hdr['content-length'] = b - a + 1;
-      res.writeHead(206, hdr);
-      return res.end(req.method === 'HEAD' ? undefined : f.body.subarray(a, b + 1));
+      code = 206;
     }
-    hdr['content-length'] = total;
-    res.writeHead(200, hdr);
-    return res.end(req.method === 'HEAD' ? undefined : f.body);
+    hdr['content-length'] = b - a + 1;
+    res.writeHead(code, hdr);
+    if (req.method === 'HEAD') return res.end();
+    const rs = fs.createReadStream(f.file, { start: a, end: b });
+    rs.on('error', () => res.destroy());
+    return rs.pipe(res);
   }
   res.writeHead(200, {
     'content-type': f.type,

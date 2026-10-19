@@ -16,6 +16,7 @@ var ws = null, wsOpen = false, queue = [], retry = 0, retryTimer = null, intenti
 var oppOnline = true, closed = false, connLost = false, pending = false;
 var prevHp = { a: MAX, b: MAX };
 var timers = {}, toastTimer = null;
+var biteHold = false;
 var pendingReact = null, resShownFor = '', sceneSoon = false;
 function sceneBusy() { return sceneSoon || !!pendingReact || anim.a || anim.b || Cine.busy(); }
 var holdStage = false, heldDice = null, anim = { a: false, b: false }, faces = { a: null, b: null };
@@ -716,7 +717,7 @@ function flushReaction() {
   if (!pr || anim.a || anim.b) return;
   pendingReact = null;
   if (!pr.done) return;                       // ერთი კამათელი ჯერ საკმარისი არ არის: სცენა ორივეს გაგორების შემდეგ ჩნდება
-  clearTimeout(timers.react2); sceneSoon = false;
+  clearTimeout(timers.react2);
   sceneSoon = true;
   timers.react2 = setTimeout(function () {
     sceneSoon = false;
@@ -742,7 +743,7 @@ function animateDie(x) {
 /* კამათლის ეკრანი: დანარჩენი ყველაფერი ფონზე გადადის, წინა პლანზე ორი კამათელია */
 function renderStage() {
   var s = state, me = role, op = (me === 'a') ? 'b' : 'a';
-  var on = !!s && s.phase === 'play' && !s.over && !closed && (s.step === 'roll' || holdStage);
+  var on = !!s && s.phase === 'play' && !s.over && !closed && !biteHold && (s.step === 'roll' || holdStage);
   $('diceStage').hidden = !on;
   $('appMain').classList.toggle('staged', on);
   if (!on) return;
@@ -838,7 +839,7 @@ function setState(next) {
   if (!prev || prev.game !== next.game) {
     prevHp = { a: next.hp.a, b: next.hp.b };
     closed = false;
-    chosenTool = null; holdStage = false; clearTimeout(timers.hold);
+    chosenTool = null; holdStage = false; biteHold = false; clearTimeout(timers.hold); clearTimeout(timers.bite);
     clearTimeout(timers.after); clearTimeout(timers.after2);
     show('s-game');
     $('roomChip').textContent = (mode === 'online') ? ('ოთახი ' + code) : 'ვარჯიში';
@@ -853,6 +854,12 @@ function setState(next) {
       pendingReact = { value: next.ev.value, done: next.ev.kind === 'roll_done' || next.ev.kind === 'roll_tie', dice: { a: next.dice.a, b: next.dice.b } };
       animateDie(next.ev.who);
     }
+  }
+  if (next.n !== prev.n && next.ev && (next.ev.kind === 'bite' || next.ev.kind === 'sip') && next.step === 'roll' && next.phase === 'play' && !next.over) {
+    // ნაკბენის შემდეგ 3 წამით ვაჩვენებთ ხინკალს, მერე გადადის კამათელზე
+    biteHold = true;
+    clearTimeout(timers.bite);
+    timers.bite = setTimeout(function () { biteHold = false; render(); maybeBotTurn(); }, 3000);
   }
   if (next.step === 'roll' || next.phase !== 'play') { holdStage = false; clearTimeout(timers.hold); }
   if (prev.step === 'roll' && next.step === 'act' && next.phase === 'play' && next.n !== prev.n) {
@@ -885,6 +892,7 @@ function botPick() {
   if (nx) setState(nx);
 }
 function botRoll() {
+  if (biteHold) { timers.bot = setTimeout(botRoll, 300); return; }
   if (mode !== 'bot' || !state || state.over || state.phase !== 'play' || state.step !== 'roll' || state.roller !== 'b') return;
   var nx = R.reduceRoll(state, 'b', Math.random);
   if (nx) setState(nx);
@@ -963,7 +971,7 @@ function scheduleRetry() {
 function resetNet() {
   intentional = true;
   clearTimeout(retryTimer);
-  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB); clearTimeout(timers.react2); sceneSoon = false;
+  clearTimeout(timers.bot); clearTimeout(timers.after); clearTimeout(timers.after2); clearTimeout(timers.hold); clearTimeout(timers.dieA); clearTimeout(timers.dieB); clearTimeout(timers.react2); clearTimeout(timers.bite); biteHold = false; sceneSoon = false;
   pendingReact = null;
   holdStage = false; heldDice = null; anim = { a: false, b: false };
   var old = ws;
